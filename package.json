@@ -10,6 +10,8 @@
   "author": "David Flenner",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^26.2.4"
+    "electron": "^26.2.4",
+    "video.js": "^8.5.2",
+    "videojs-youtube": "^3.0.1"
   }
 }

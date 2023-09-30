@@ -3,6 +3,7 @@
 // Modules to control application life and create native browser window
 const { app, BrowserWindow } = require('electron')
 const path = require('node:path')
+const yt = require("videojs-youtube")
 
 const createWindow = () => {
   // Create the browser window.
@@ -13,7 +14,7 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js')
     }
   })
-
+ 
   // and load the index.html of the app.
   mainWindow.loadFile('index.html')
 
