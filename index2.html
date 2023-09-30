@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+
+   <script src="./node_modules/video.js/dist/video.js"></script>
+  <!--  <script src="https://vjs.zencdn.net/8.5.2/video.min.js"></script> -->
+    <link href="./styles.css"rel="stylesheet" /> 
+    <title>Hello World!</title>
+  </head>
+  <body>
+    <h1>Hello World!</h1>
+    We are using Node.js <span id="node-version"></span>,
+    Chromium <span id="chrome-version"></span>,
+    and Electron <span id="electron-version"></span>.
+  </body>
+  <video id="lecture" class="video-js" controls preload="auto" data-setup='{ "muted": true, "width":640 }'>
+    <source src="./videos/mat104_1-1_lecture.mp4" type="video/mp4">
+  </video> 
+  
+
+   <video id="my-video-player" controls preload="auto" class="video-js" width="640"
+    height="264" data-setup='{ "muted": true }'>
+        <source src="https://www.tutorialspoint.com/videos/sample1080p.mp4" type="video/mp4" />
+     </video> 
+     
+     <script>
+        const player = videojs('my-video-player');
+        console.log(`Muted == ${player.muted()}`);
+        const player1 = videojs('lecture');
+
+        myTimer = setInterval(function () { console.log(getPlayedInervals(player1)) }, 1000)
+
+        function getPlayedInervals(player) {
+          playedIntervals = [];
+          TimerObject = player.played();
+          for (let i = 0; i < TimerObject.length; i++) {
+            console.log(`LENGTH == ${TimerObject.length}`);
+            interval = [TimerObject.start(i), TimerObject.end(i)];
+            playedIntervals.push(interval);
+          }
+          return playedIntervals;
+        }
+
+     </script>
+
+
+
+
+</html>
