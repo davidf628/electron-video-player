@@ -4,7 +4,7 @@
 
     <meta charset="UTF-8">
     <link type="text/css" rel="stylesheet" href="./node_modules/video.js/dist/video-js.min.css" />
-    <title>Hello World!</title>
+    <title>MATH 104 Video Player</title>
 
   </head>
 
@@ -18,16 +18,30 @@
     autoplay
     width="640" height="480
     "
-    data-setup='{ "muted": true, "techOrder": ["youtube", "html5"], "sources": [{ "type": "video/youtube", "src": "https://youtu.be/DNQOjVkixqI"}], "youtube": { "ytControls": 2 }  }'
+    data-setup='{ "muted": true, 
+                  "techOrder": ["youtube", "html5"], 
+                  "sources": [
+                     { "type": "video/youtube", "src": "https://youtu.be/DNQOjVkixqI"}], 
+                  "youtube": { "ytControls": 2 }  }'
   >
   </video>
 
   <script src="./node_modules/video.js/dist/video.js"></script>
   <script src="./dist/Youtube.js"></script>
 
+  <input type="button" value="Play Video 1" onclick="changeVideo()" />
+
   <script>
+
+    function changeVideo() {
+     // "sources": [{ "type": "video/youtube", "src": "https://youtu.be/DwnLK_gbHuI"}]
+      player.src({ type: 'video/youtube', src: 'https://youtu.be/DwnLK_gbHuI' })
+    }
+
     player = videojs('vid1');
+    player.fluid(true);
     intervalsWatched = [];
+  
 
     //intervalsWatched = [ [0, 10.98], [64.97, 69.86], [15, 25] ]
     //intervalsWatched = addToPlayedIntervals(158.34, intervalsWatched);
