@@ -4,6 +4,8 @@
 
     <meta charset="UTF-8">
     <link type="text/css" rel="stylesheet" href="./node_modules/video.js/dist/video-js.min.css" />
+    <script src="./js/d3.js"></script>
+    <script src="./js/d3misc.js"></script>
     <title>MATH 104 Video Player</title>
 
   </head>
@@ -31,16 +33,69 @@
 
   <input type="button" value="Play Video 1" onclick="changeVideo()" />
 
+  <div id="status-bar">
+    <svg id="status-background">
+
+    </svg>
+  </div>
+
   <script>
+
+    player = videojs('vid1');
+    player.fluid(true);
+
+    player.ready(() => {
+
+      xScale.range([0, player.duration()]);
+
+      myTimer = setInterval(
+        function () { 
+          intervalsWatched = addToPlayedIntervals(player.currentTime(), intervalsWatched);
+          drawProgress(intervalsWatched); 
+        }, 
+      1000);
+
+    });
+
+    intervalsWatched = [];
+
+    function drawProgress(intervals_watched) {
+      d3.select('#chart-area').remove();
+      let chart_area = d3.select('#status-background')
+        .append('g')
+        .attr('id', 'chart-area')
+      chart_area.selectAll("rect")
+        .data(intervals_watched)
+        .enter()
+        .append("rect")
+        .attr("x", (d, i) => { return xScale(d[0]); })
+        .attr("y", 0)
+        .attr("width", (d) => { return xScale(d[1] - d[0]); })
+        .attr("height", 50)
+        .attr("fill", "blue")
+        .attr("stroke", "black");
+    }
 
     function changeVideo() {
      // "sources": [{ "type": "video/youtube", "src": "https://youtu.be/DwnLK_gbHuI"}]
       player.src({ type: 'video/youtube', src: 'https://youtu.be/DwnLK_gbHuI' })
     }
 
-    player = videojs('vid1');
-    player.fluid(true);
-    intervalsWatched = [];
+    let svg = d3.select('#status-background')
+      .attr('width', 600)
+      .attr('height', 50);
+
+    setBackground(svg, 600, 50, "lightgray", "black");
+
+    svg
+      .append('g')
+      .attr('id', 'chart-area');
+
+    let xScale = d3.scaleLinear().domain([0, 600]);
+
+
+
+
   
 
     //intervalsWatched = [ [0, 10.98], [64.97, 69.86], [15, 25] ]
@@ -55,12 +110,7 @@
     //intervalsWatched = addToPlayedIntervals(4, intervalsWatched);
     //intervalsWatched = addToPlayedIntervals(20, intervalsWatched);
 
-    myTimer = setInterval(
-      function () { 
-        intervalsWatched = addToPlayedIntervals(player.currentTime(), intervalsWatched);
-        console.log(intervalsWatched); 
-      }, 
-    1000);
+
 
     function swapArrayItems(u, v, array) {
       let temp = array[u];
