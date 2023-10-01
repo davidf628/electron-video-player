@@ -1,3 +1,169 @@
+
+ /*****************************************************************************
+  * Switches the position of two elements within an array
+  */
+
+function swapArrayItems(u, v, array) {
+    let temp = array[u];
+    array.splice(u, 1, array[v]);
+    array.splice(v, 1, temp);
+    return array;
+}
+
+/******************************************************************************
+ * Takes a time stamp and adds it to an interval of values that have been
+ *  played back. If it is a timestamp that is more than 3 seconds from another
+ *  timestamp, it creates a new interval. Thus the intervals are an array of
+ *  arrays like:
+ *  
+ *   [ [start0, end0], [start1, end1], ..., [startn, endn] ]
+ */
+
+function addToPlayedIntervals(current_time, intervals_watched) {
+      
+    // Initialize array if the video has just been started
+    if (intervals_watched.length == 0) {
+
+      if (current_time < 3) {
+        intervals_watched.push([0, current_time]);
+      } else {
+        intervals_watched.push([current_time, current_time + 1]);
+      }
+
+    } else {
+
+      // Sort the array, if necessary
+    if (intervals_watched.length >= 2) {
+
+        for (let i = 0; i < intervals_watched.length - 1; i++) {
+          for (let j = i+1; j < intervals_watched.length; j++) {
+
+            let begin_first = intervals_watched[i][0];
+            let end_first = intervals_watched[i][1];
+  
+            let begin_next = intervals_watched[j][0];
+            let end_next = intervals_watched[j][1];
+  
+            // Check to make sure the intervals are valid:
+            if ((end_first < begin_first) || (end_next < begin_next)) {
+              console.log(`ERROR! Interval is inverted! ${intervals_watched}`);
+            } else if (begin_next < begin_first) {
+              intervals_watched = swapArrayItems(i, j, intervals_watched);
+            }
+
+          }
+        }
+
+      }
+
+      // Check to see if any adjacent time intervals can be joined
+      for (let i = 0; i < intervals_watched.length - 1; i++) {
+
+        let begin_current = intervals_watched[i][0];
+        let end_current = intervals_watched[i][1];
+
+        let begin_next = intervals_watched[i+1][0];
+        let end_next = intervals_watched[i+1][1];
+
+        if (Math.abs(begin_next - end_current) < 3) {
+          intervals_watched.splice(i, 2, [begin_current, end_next]);
+        } 
+      }
+
+      // Check to see if the current time is within any of the intervals
+      //  if so, ignore this case
+      for (let interval of intervals_watched) {
+        let start = interval[0];
+        let end = interval[1];
+        if ((current_time > start) && (current_time < end)) {
+          return intervals_watched;
+        }
+      }
+
+      // Check to see if the current time is within 3 seconds of the end
+      //  of any interval, if so, then extend that interval
+      for (let interval of intervals_watched) {
+        let start = interval[0];
+        let end = interval[1];
+
+        if (Math.abs(current_time - end) < 3)  {
+
+          let index = intervals_watched.indexOf(interval);
+          interval = [ start, current_time ];
+          intervals_watched.splice(index, 1, interval);
+
+          return intervals_watched;
+        }
+
+      }
+
+      // Check to see if the current time is within 3 seconds of the
+      //  start of any interval, if so, then extend that interval
+      for (let interval of intervals_watched) {
+        let start = interval[0];
+        let end = interval[1];
+
+        if (Math.abs(start - current_time) < 3) {
+
+          let index = intervals_watched.indexOf(interval);
+          interval = [ current_time, end ];
+          intervals_watched.splice(index, 1, interval);
+
+          return intervals_watched;
+        }
+
+      }
+
+      // Check to see if the current time is more than 3 seconds away
+      //  from the end of any interval, if so create a new interval
+      //  Start checking from the end to make sure the "best" placement
+      //  occurs
+      for (let i = intervals_watched.length - 1; i >= 0; i--) {
+
+        let interval = intervals_watched[i];
+
+        let start = interval[0];
+        let end = interval[1];
+
+        if (Math.abs(current_time - end) > 3) {
+
+          let new_interval = [ current_time, current_time + 1 ];
+          intervals_watched.splice(i + 1, 0, new_interval);
+
+          return intervals_watched;
+        }
+
+      }       
+
+
+    }
+
+    return intervals_watched;
+
+  }
+
+/******************************************************************************
+ * Get the total percentage of the video viewed for a particular video, based
+ * on the current viewed intervals, returns a number, rounded to the nearest
+ * integer.
+ */
+
+function getPercentViewed(intervals_watched, duration) {
+
+    if (isNaN(duration) ) {
+        return 0;
+    } else {
+        let total = 0;
+
+        for(let interval of intervals_watched) {
+            total += interval[1] - interval[0];
+        }
+
+        return Math.round((total / duration) * 100);
+    }
+
+}
+
 function setBackground(svg, width, height, color, border) {
     svg.append('rect')
         .attr('x', 0)
