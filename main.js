@@ -20,11 +20,7 @@ const createWindow = () => {
   // and load the index.html of the app.
   mainWindow.loadFile('index.html');
 
-  ipcMain.handle('get-video-data', async () => {
-    let data = await fetch('https://davidf628.github.io/video_data_104.json')
-    let payload = await data.json();
-    return payload;
-  });
+
 
   ipcMain.handle('get-version', async () => {
     return version;
@@ -39,7 +35,7 @@ const createWindow = () => {
           } else {
               console.log(`... was written successfully!`);
           }
-      })
+      });
 
 
     // mjAPI.typeset({
@@ -102,22 +98,40 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  createWindow()
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    }
-  })
-})
+    ipcMain.handle('get-video-data', fetch_video_data);
+    ipcMain.handle('get-intervals-watched', get_intervals_watched);
+
+    createWindow();
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+        }
+    });
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  //if (process.platform !== 'darwin') app.quit()
-  app.quit()
+  if (process.platform !== 'darwin') app.quit();
+  //app.quit()
 })
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+/******************************************************************************
+ * This function calls my website for a hosted file that contains links to all
+ *  the math 104 youtube vidoes my students can be tracked on
+ */
+async function fetch_video_data() {
+    let data = await fetch('https://davidf628.github.io/video_data_104.json')
+    let payload = await data.json();
+    return payload;
+}
+
+function get_intervals_watched(video) {
+    return [ [0, 95.8], [106.1, 205.9] ];
+}

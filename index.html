@@ -109,6 +109,16 @@
     // Setup  the player
     intervalsWatched = [];
 
+    window.api.getIntervalsWatched('ada')
+        .then(intervals => { intervalsWatched = intervals; })
+
+    //async function retrieve_intervals(video) {
+    //    let intervals = await window.api.getIntervalsWatched(video);
+    //    intervalsWatched = intervals;
+    //}
+    //retrieve_intervals('ada');
+    //console.log(intervalsWatched);
+
     player = videojs('vid1');
     player.fluid(true);
 
@@ -126,16 +136,16 @@
 
 
 window.api.handleEditorEvent( (event, cmd) => {
-  switch(cmd.action) {
-      case 'set-version':
-          window.document.title = `Version: ${cmd.data}`;
-          break;
-      case 'set-directory':
-          document.getElementById("svg-path").innerText = cmd.data;
-          break;
-      default:
-          break;    
-  };
+    switch(cmd.action) {
+        case 'set-version':
+            window.document.title = `Version: ${cmd.data}`;
+            break;
+        case 'set-directory':
+            document.getElementById("svg-path").innerText = cmd.data;
+            break;
+        default:
+            break;    
+    };
 });
 
     /*****************************************************************************
