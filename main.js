@@ -5,6 +5,8 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('node:path')
 const fs = require('fs')
 
+const version = "0.4.2";
+
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -18,12 +20,26 @@ const createWindow = () => {
   // and load the index.html of the app.
   mainWindow.loadFile('index.html');
 
+  ipcMain.on('set-title', (event, title) => {
+    const webContents = event.sender;
+    const win = BrowserWindow.fromWebContents(webContents);
+    win.setTitle(title);
+  })
+
   ipcMain.on('toMain', (event, args) => {
     fetch('https://davidf628.github.io/video_data_104.json')
       .then(data => data.json())
       .then(data => mainWindow.webContents.send('fromMain', JSON.stringify(data)))
     
   });
+
+  ipcMain.handle('get-version', async () => {
+    console.log('i am getting version');
+    return version;
+  })
+
+  const window = BrowserWindow.getFocusedWindow();
+  mainWindow.webContents.send('editor-event', { action: 'set-version', data: version });
 
   ipcMain.on('save-video-data', (event, data) => {
       console.log(`VIDEO ID == ${data.video_id}`);

@@ -7,7 +7,7 @@
     <link type="text/css" rel="stylesheet" href="./node_modules/video.js/dist/video-js.min.css" />
     <script src="./js/d3.js"></script>
     <script src="./js/misc.js"></script>
-    <title>MATH 104 Video Player v0.4.1</title>
+    <title>MATH 104 Video Player</title>
 
     <style>
         .center {
@@ -85,9 +85,38 @@
     window.api.saveVideo(data);
 }
 
-  window.api.receive('fromMain', (data) => {
+window.api.handleEditorEvent( (event, cmd) => {
+  switch(cmd.action) {
+      case 'set-version':
+          window.document.title = `Version: ${cmd.data}`;
+          break;
+      case 'set-directory':
+          document.getElementById("svg-path").innerText = cmd.data;
+          break;
+      default:
+          break;    
+  };
+});
+
+
+async function setVersion() {
+
+  let version = await window.api.getVersion();
+  window.document.title = `MATH 104 Video Player v${version}`;
+}
+  
+setVersion();
+
+  window.api.receive('toMain', (data) => {
     console.log(`Received ${data} from main process.`);
   });
+
+  window.api.receive('get-version', (version) => {
+    console.log('change title');
+    window.document.title = `MATH 104 Video Player v${version}`;
+  });
+
+  window.document.title = 'hi';
 
     function showVideoTab() {
       document.getElementById('login').style.display = 'none';
