@@ -3,7 +3,8 @@
 // Modules to control application life and create native browser window
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('node:path')
-const fs = require('fs')
+const fs = require('fs');
+const fsPromises = require('fs').promises;
 
 const version = "0.4.3";
 
@@ -28,8 +29,8 @@ const createWindow = () => {
 
   ipcMain.on('save-video-data', (event, data) => {
       console.log(`VIDEO ID == ${data.video_id}`);
-      let payload = `${JSON.stringify(data)}\n${btoa(JSON.stringify(data))}`
-      fs.writeFile('./output.data', payload, (err) => {
+      let payload = `${JSON.stringify(data)}`
+      fs.appendFile('./output.data', payload, (err) => {
           if (err) {
               console.error(`An error occured while writing to the file ...`);
           } else {
@@ -132,6 +133,35 @@ async function fetch_video_data() {
     return payload;
 }
 
-function get_intervals_watched(video) {
-    return [ [0, 95.8], [106.1, 205.9] ];
+async function get_intervals_watched(video) {
+
+    const data = await fsPromises.readFile('./output.data')
+        .catch((err) => console.error('Failed to read file', err));
+
+    let lines = data.toString().split('\n');
+    let view_data = [];
+
+    for (let line of lines) {
+        view_data.push(JSON.parse(line));
+    }
+
+    return view_data[0].intervals_watched;
 }
+      
+
+    // fs.readFileSync('./output.data', 'utf-8'), (err, data) => {
+    //     if (err) {
+    //         console.log('Error reading data file output.data.');
+    //     } else {
+    //         let lines = data.split('\n');
+    //         let dump = ''
+    //         for (let line of lines) {
+    //             dump = JSON.parse(line);
+    //         }
+    //         console.log(dump);
+    //         console.log(dump.intervals_watched);
+    //         //return dump.intervals_watched;
+    //         return [ [0, 55.82], [105.8, 205.1 ]];
+    //     }
+    // });
+    // return [ [0, 25] ];
