@@ -2,7 +2,6 @@
 <html>
     
 <head>
-
     <meta charset="UTF-8">
     <link type="text/css" rel="stylesheet" href="./node_modules/video.js/dist/video-js.min.css" />
     <script src="./js/d3.js"></script>
@@ -79,29 +78,52 @@
 </div>
 
 
+<!-- Setup code and underlying functionality -->
+
 <script>
 
-  // Set the window title to contain the current version number
-  setVersion();
+    // -------- Setup code ---------
 
-  // Retrieve the current list of videos playable on YouTube
-  setVideoOptions();
+    // Set the window title to contain the current version number
+    setVersion();
 
-  function saveVideo(intervals_watched) {
-    let id = document.getElementById('video-select').value;
-    let user = document.getElementById('username').value;
-    let studentid = document.getElementById('studentid').value;
-    const data = {
-        video_id: id,
-        student_name: user,
-        student_id: studentid,
-        score: getPercentViewed(intervals_watched, player.duration()),
-        intervals_watched: intervals_watched,
-        timestamp: new Date()
-    }
-    console.log(data);
-    window.api.saveVideo(data);
-}
+    // Retrieve the current list of videos playable on YouTube
+    setVideoOptions();
+
+    // Hide the video display panel initially 
+    document.getElementById('video').style.display = 'none';
+
+    // Set up the svg area for drawing the status bar
+    let xScale = d3.scaleLinear().range([0, 600]);
+
+    let svg = d3.select('#status-background')
+        .attr('width', 600)
+        .attr('height', 50);
+
+    setBackground(svg, 600, 50, "lightgray", "black");
+
+    svg
+        .append('g')
+        .attr('id', 'chart-area');
+
+    // Setup  the player
+    intervalsWatched = [];
+
+    player = videojs('vid1');
+    player.fluid(true);
+
+    player.ready(() => {
+        xScale.domain([0, player.duration()]);
+
+        myTimer = setInterval(
+            function () { 
+                intervalsWatched = addToPlayedIntervals(player.currentTime(), intervalsWatched);
+                drawProgress(intervalsWatched); 
+            }, 1000);
+    });
+
+    
+
 
 window.api.handleEditorEvent( (event, cmd) => {
   switch(cmd.action) {
@@ -116,122 +138,123 @@ window.api.handleEditorEvent( (event, cmd) => {
   };
 });
 
-/*****************************************************************************
- * Call the backend to find out what the current version of the program is
- *  and display that in the window title.
- */
-async function setVersion() {
-  let version = await window.api.getVersion();
-  window.document.title = `MATH 104 Video Player v${version}`;
-}
-  
-/******************************************************************************
- * Get a list of all the current videos that can be played, and places them 
- *  into a select box so the user can change videos. 
- */
+    /*****************************************************************************
+     * Call the backend to find out what the current version of the program is
+     *  and display that in the window title.
+     */
 
-async function setVideoOptions() {
-  let video_data = await window.api.get_video_data();
+    async function setVersion() {
+        let version = await window.api.getVersion();
+        window.document.title = `MATH 104 Video Player v${version}`;
+    }
+    
+    /******************************************************************************
+     * Get a list of all the current videos that can be played, and places them 
+     *  into a select box so the user can change videos. 
+     */
 
-  // get reference to video list
-  let video_select = document.getElementById('video-select');
+    async function setVideoOptions() {
+        let video_data = await window.api.get_video_data();
 
-  // remove current video options
-  while (video_select.length > 0) {
-    video_select.remove(0);
-  }
+        // get reference to video list
+        let video_select = document.getElementById('video-select');
 
-  // add the YouTube video links
-  for (let video in video_data) {
-    console.log(video);
-    let option = document.createElement('option');
-    option.text = video_data[video].title;
-    option.value = video_data[video].id;
-    video_select.add(option, null);
-  }
+        // remove current video options
+        while (video_select.length > 0) {
+            video_select.remove(0);
+        }
 
-}
-
-    function showVideoTab() {
-      document.getElementById('login').style.display = 'none';
-      document.getElementById('video').style.display = 'block';
+        // add the YouTube video links
+        for (let video in video_data) {
+            let option = document.createElement('option');
+            option.text = video_data[video].title;
+            option.value = video_data[video].id;
+            video_select.add(option, null);
+        }
     }
 
-    document.getElementById('video').style.display = 'none';
-    player = videojs('vid1');
-    player.fluid(true);
-    player.bigPlayButton.show();
 
-    player.ready(() => {
+    /**************************************************************************
+     * Sends the current view data to the backend in order to save the
+     *  current view information to disk.
+     */
 
-      xScale.domain([0, player.duration()]);
+     function saveVideo(intervals_watched) {
+        let id = document.getElementById('video-select').value;
+        let user = document.getElementById('username').value;
+        let studentid = document.getElementById('studentid').value;
+        const data = {
+            video_id: id,
+            student_name: user,
+            student_id: studentid,
+            score: getPercentViewed(intervals_watched, player.duration()),
+            intervals_watched: intervals_watched,
+            timestamp: new Date()
+        }
+        window.api.saveVideo(data);
+    }
 
-      myTimer = setInterval(
-        function () { 
-          intervalsWatched = addToPlayedIntervals(player.currentTime(), intervalsWatched);
-          drawProgress(intervalsWatched); 
-        }, 
-      1000);
+    /**************************************************************************
+     * Switches the interface between the retrieve username/student id to the
+     *  video player interface
+     */
 
-    });
+    function showVideoTab() {
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('video').style.display = 'block';
+    }
 
-    intervalsWatched = [];
+    /**************************************************************************
+     * Uses D3 to draw the progress bar based on the intervals that have
+     *  already been watched.
+     */
 
     function drawProgress(intervals_watched) {
 
-      let percent = `${getPercentViewed(intervals_watched, player.duration())}%`;
- 
-      d3.select('#chart-area').remove();
-      let chart_area = d3.select('#status-background')
-        .append('g')
-        .attr('id', 'chart-area')
-      if (!isNaN(xScale(0))) {
-        chart_area.selectAll("rect")
-          .data(intervals_watched)
-          .enter()
-          .append("rect")
-          .attr("x", (d, i) => { return xScale(d[0]); })
-          .attr("y", 0)
-          .attr("width", (d) => { return xScale(d[1] - d[0]); })
-          .attr("height", 50)
-          .attr("fill", "blue")
-          .attr("stroke", "black");
-        chart_area
-          .append('text')
-          .style('font-family', 'Helvetica')
-          .style('font-size', 40)
-          .style('font-weight', 'bold')
-          .attr('fill', 'white')
-          .attr('transform', `translate(300,27)`)
-          .attr('text-anchor', 'middle')
-          .attr('dominant-baseline', 'middle')
-          .text(percent);
-      } else {
-        xScale.domain([0, player.duration()]);
-      }
+        let percent = `${getPercentViewed(intervals_watched, player.duration())}%`;
+        
+        d3.select('#chart-area').remove();
+        let chart_area = d3.select('#status-background')
+            .append('g')
+            .attr('id', 'chart-area')
+        
+        if (!isNaN(xScale(0))) {
+            chart_area.selectAll("rect")
+                .data(intervals_watched)
+                .enter()
+                .append("rect")
+                .attr("x", (d, i) => { return xScale(d[0]); })
+                .attr("y", 0)
+                .attr("width", (d) => { return xScale(d[1] - d[0]); })
+                .attr("height", 50)
+                .attr("fill", "blue")
+                .attr("stroke", "black");
+            chart_area
+                .append('text')
+                .style('font-family', 'Helvetica')
+                .style('font-size', 40)
+                .style('font-weight', 'bold')
+                .attr('fill', 'white')
+                .attr('transform', `translate(300,27)`)
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'middle')
+                .text(percent);
+        } else {
+                xScale.domain([0, player.duration()]);
+        }
     }
+
+    /**************************************************************************
+     * Changes the current video loaded into the player
+     */
 
     function changeVideo(select_option) {
-      let video = select_option.value;
-      player.src({ type: 'video/youtube', src: `https://youtu.be/${video}` });
-      player.play();
+        let video = select_option.value;
+        player.src({ type: 'video/youtube', src: `https://youtu.be/${video}` });
+        player.play();
     }
 
-    let svg = d3.select('#status-background')
-      .attr('width', 600)
-      .attr('height', 50);
-
-    setBackground(svg, 600, 50, "lightgray", "black");
-
-    svg
-      .append('g')
-      .attr('id', 'chart-area');
-
-    let xScale = d3.scaleLinear().range([0, 600]);
-
-
-  </script>
-
+</script>
 
 </body>
 

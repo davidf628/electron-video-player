@@ -5,7 +5,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('node:path')
 const fs = require('fs')
 
-const version = "0.4.2";
+const version = "0.4.3";
 
 const createWindow = () => {
   // Create the browser window.
@@ -69,8 +69,8 @@ const createWindow = () => {
   ipcMain.on('create-new-video-database', async (event) => {
       const window = BrowserWindow.getFocusedWindow();
       const options = {
-          title: 'Open a Directory',
-          properties: ['openDirectory']
+          title: 'Create a New File',
+          properties: ['openFile']
       };
       const result = await dialog.showOpenDialog(window, options);
       if (result.filePaths && result.filePaths.length > 0) {
