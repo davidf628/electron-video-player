@@ -27,8 +27,8 @@
 <div id="login" class="center">
 
     <p>Enter Login Information</p>
-    <input type="input" placeholder="Name (First and Last)" />
-    <input type="input" placeholder="StudentID" />
+    <input id="username" type="input" placeholder="Name (First and Last)" />
+    <input id="studentid" type="input" placeholder="StudentID" />
     <br/><br/>
     <input type="button" value="Create New Video Database" onclick="showVideoTab()">
     <br/><br/>
@@ -62,6 +62,15 @@
 
       <input type="button" value="Save Video" onclick="saveVideo(intervalsWatched)" />
 
+      <label for="video-select">Select a video:</label>
+
+      <select id="video-select" onchange="changeVideo(this)">
+        <option value="item1">Item 1</option>
+        <option value="item2">Item 2</option>
+        <option value="item3">Item 3</option>
+        <option value="item4">Item 4</option>
+      </select> 
+
       <div id="status-bar">
           <svg id="status-background">
 
@@ -72,11 +81,20 @@
 
 <script>
 
+  // Set the window title to contain the current version number
+  setVersion();
+
+  // Retrieve the current list of videos playable on YouTube
+  setVideoOptions();
+
   function saveVideo(intervals_watched) {
+    let id = document.getElementById('video-select').value;
+    let user = document.getElementById('username').value;
+    let studentid = document.getElementById('studentid').value;
     const data = {
-        video_id: 'DNQOjVkixqI',
-        student_name: 'David Flenner',
-        student_id: '20125179',
+        video_id: id,
+        student_name: user,
+        student_id: studentid,
         score: getPercentViewed(intervals_watched, player.duration()),
         intervals_watched: intervals_watched,
         timestamp: new Date()
@@ -98,25 +116,41 @@ window.api.handleEditorEvent( (event, cmd) => {
   };
 });
 
-
+/*****************************************************************************
+ * Call the backend to find out what the current version of the program is
+ *  and display that in the window title.
+ */
 async function setVersion() {
-
   let version = await window.api.getVersion();
   window.document.title = `MATH 104 Video Player v${version}`;
 }
   
-setVersion();
+/******************************************************************************
+ * Get a list of all the current videos that can be played, and places them 
+ *  into a select box so the user can change videos. 
+ */
 
-  window.api.receive('toMain', (data) => {
-    console.log(`Received ${data} from main process.`);
-  });
+async function setVideoOptions() {
+  let video_data = await window.api.get_video_data();
 
-  window.api.receive('get-version', (version) => {
-    console.log('change title');
-    window.document.title = `MATH 104 Video Player v${version}`;
-  });
+  // get reference to video list
+  let video_select = document.getElementById('video-select');
 
-  window.document.title = 'hi';
+  // remove current video options
+  while (video_select.length > 0) {
+    video_select.remove(0);
+  }
+
+  // add the YouTube video links
+  for (let video in video_data) {
+    console.log(video);
+    let option = document.createElement('option');
+    option.text = video_data[video].title;
+    option.value = video_data[video].id;
+    video_select.add(option, null);
+  }
+
+}
 
     function showVideoTab() {
       document.getElementById('login').style.display = 'none';
@@ -177,9 +211,10 @@ setVersion();
       }
     }
 
-    function changeVideo() {
-     // "sources": [{ "type": "video/youtube", "src": "https://youtu.be/DwnLK_gbHuI"}]
-      player.src({ type: 'video/youtube', src: 'https://youtu.be/DwnLK_gbHuI' })
+    function changeVideo(select_option) {
+      let video = select_option.value;
+      player.src({ type: 'video/youtube', src: `https://youtu.be/${video}` });
+      player.play();
     }
 
     let svg = d3.select('#status-background')
