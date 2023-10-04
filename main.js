@@ -23,9 +23,7 @@ const createWindow = () => {
 
 
 
-  ipcMain.handle('get-version', async () => {
-    return version;
-  })
+
 
   ipcMain.on('save-video-data', (event, data) => {
       console.log(`VIDEO ID == ${data.video_id}`);
@@ -37,29 +35,6 @@ const createWindow = () => {
               console.log(`... was written successfully!`);
           }
       });
-
-
-    // mjAPI.typeset({
-    //     math: options.equation_str,
-    //     format: options.render_engine, // or "inline-TeX", "MathML", "AsciiMath", "TeX"
-    //     svg:true,      // or svg:true, or html:true, or mml:true
-    // }, function (data) {
-    //     if (!data.errors) {
-    //         const window = BrowserWindow.getFocusedWindow();
-    //         const filepath = path.join(options.filepath, options.filename);
-    //         window.webContents.send('editor-event', { action: 'load-svg', data: data.svg });
-    //         fs.writeFile(filepath, data.svg, (err) => {
-    //             if (err) {
-    //               console.error(`An error occurred while writing the file: ${filepath}`);
-    //             } else {
-    //               console.log(`${filepath} has been written successfully!`);
-    //             }
-    //           });
-    //     } else {
-    //         const window = BrowserWindow.getFocusedWindow();
-    //         window.webContents.send('editor-event', { action: 'load-svg', data: data.errors });
-    //     }
-    //   });
 
 });
 
@@ -102,6 +77,7 @@ app.whenReady().then(() => {
 
     ipcMain.handle('get-video-data', fetch_video_data);
     ipcMain.handle('get-intervals-watched', get_intervals_watched);
+    ipcMain.handle('get-version', get_version_number);
 
     createWindow();
 
@@ -117,8 +93,7 @@ app.whenReady().then(() => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
-  //app.quit()
-})
+});
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
@@ -133,35 +108,46 @@ async function fetch_video_data() {
     return payload;
 }
 
-async function get_intervals_watched(video) {
+/******************************************************************************
+ * Reads through a data file and pulls all the intervals that qualify for a
+ *  specific video.
+ */
+async function get_intervals_watched(event, video) {
 
+    // read the data file - will need to change this to student selected file
     const data = await fsPromises.readFile('./output.data')
         .catch((err) => console.error('Failed to read file', err));
 
+    // convert the raw data into lines of text
     let lines = data.toString().split('\n');
     let view_data = [];
 
+    // go through the lines and pick the ones that match the given video_id
     for (let line of lines) {
-        view_data.push(JSON.parse(line));
+        let obj = JSON.parse(line);
+        console.log(obj);
+        console.log(`looking for == ${JSON.stringify(video)}`);
+        if (video === obj.video_id) {
+            view_data.push(obj.intervals_watched);
+            console.log(obj.intervals_watched);
+        }
     }
 
-    return view_data[0].intervals_watched;
-}
-      
+    // return the intervals found, or an empty set if none were found
+    // this will need to be updated to combine multiple read results
+    if (view_data.length === 0) {
+        return [ [0, 0] ]
+    } else {
+        return view_data[0].intervals_watched;
+    }
 
-    // fs.readFileSync('./output.data', 'utf-8'), (err, data) => {
-    //     if (err) {
-    //         console.log('Error reading data file output.data.');
-    //     } else {
-    //         let lines = data.split('\n');
-    //         let dump = ''
-    //         for (let line of lines) {
-    //             dump = JSON.parse(line);
-    //         }
-    //         console.log(dump);
-    //         console.log(dump.intervals_watched);
-    //         //return dump.intervals_watched;
-    //         return [ [0, 55.82], [105.8, 205.1 ]];
-    //     }
-    // });
-    // return [ [0, 25] ];
+    
+}
+
+
+/******************************************************************************
+ * Get the current version number and passes it over to the main program
+ */
+async function get_version_number () {
+    return version;
+}

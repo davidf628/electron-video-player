@@ -109,9 +109,6 @@
     // Setup the player
     intervalsWatched = [];
 
-    window.api.getIntervalsWatched('ada')
-        .then(view => { console.log(view); intervalsWatched = view; })
-
     player = videojs('vid1');
     player.fluid(true);
 
@@ -252,12 +249,17 @@ window.api.handleEditorEvent( (event, cmd) => {
      * Changes the current video loaded into the player
      */
 
-    function changeVideo(select_option, play) {
-        let video = select_option.value;
+    function changeVideo(play) {
+        let video = document.getElementById('video-select').value;
+
+        window.api.getIntervalsWatched(video)
+            .then(view => { console.log(view); intervalsWatched = view; })
+        
         player.src({ type: 'video/youtube', src: `https://youtu.be/${video}` });
         if (play) {
             player.play();
         }
+
     }
 
 </script>

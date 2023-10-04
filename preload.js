@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld(
       },
       getVersion: () => ipcRenderer.invoke('get-version'),
       get_video_data: () => ipcRenderer.invoke('get-video-data'),
-      getIntervalsWatched: (video) => ipcRenderer.invoke('get-intervals-watched'),
+      getIntervalsWatched: (video) => ipcRenderer.invoke('get-intervals-watched', video),
       saveVideo: (data) => ipcRenderer.send('save-video-data', data),
       openDirectory: () => ipcRenderer.send('open-directory'),
 
