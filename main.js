@@ -9,25 +9,25 @@ const fsPromises = require('fs').promises;
 const version = "0.4.3";
 
 const createWindow = () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
-    }
-  })
+    // Create the browser window.
+    const mainWindow = new BrowserWindow({
+        width: 800,
+        height: 600,
+        webPreferences: {
+        preload: path.join(__dirname, 'preload.js')
+        }
+    })
  
-  // and load the index.html of the app.
-  mainWindow.loadFile('index.html');
+    // and load the index.html of the app.
+    mainWindow.loadFile('index.html');
 
-
+    console.log(app.getPath('userData'));
 
 
 
   ipcMain.on('save-video-data', (event, data) => {
       console.log(`VIDEO ID == ${data.video_id}`);
-      let payload = `${JSON.stringify(data)}`
+      let payload = `\n${JSON.stringify(data)}`
       fs.appendFile('./output.data', payload, (err) => {
           if (err) {
               console.error(`An error occured while writing to the file ...`);
@@ -92,7 +92,7 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+    if (process.platform !== 'darwin') app.quit();
 });
 
 // In this file you can include the rest of your app's specific main process
@@ -125,11 +125,11 @@ async function get_intervals_watched(event, video) {
     // go through the lines and pick the ones that match the given video_id
     for (let line of lines) {
         let obj = JSON.parse(line);
-        console.log(obj);
-        console.log(`looking for == ${JSON.stringify(video)}`);
+        //console.log(obj);
+        //console.log(`looking for == ${JSON.stringify(video)}`);
         if (video === obj.video_id) {
             view_data.push(obj.intervals_watched);
-            console.log(obj.intervals_watched);
+            //console.log(obj.intervals_watched);
         }
     }
 
@@ -138,10 +138,9 @@ async function get_intervals_watched(event, video) {
     if (view_data.length === 0) {
         return [ [0, 0] ]
     } else {
-        return view_data[0].intervals_watched;
+        return view_data[0];
     }
 
-    
 }
 
 
@@ -150,4 +149,15 @@ async function get_intervals_watched(event, video) {
  */
 async function get_version_number () {
     return version;
+}
+
+/******************************************************************************
+ * Combines two sets of intervals using the set operation of union to make
+ *  sure no time ranges are duplicated
+ */
+
+function union_intervals (interval1, interval2) {
+
+    
+
 }

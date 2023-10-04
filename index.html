@@ -108,6 +108,7 @@
 
     // Setup the player
     intervalsWatched = [];
+    video_data = [];
 
     player = videojs('vid1');
     player.fluid(true);
@@ -154,7 +155,8 @@ window.api.handleEditorEvent( (event, cmd) => {
      */
 
     async function setVideoOptions() {
-        let video_data = await window.api.get_video_data();
+        let buffer = await window.api.get_video_data();
+        video_data = buffer;
 
         // get reference to video list
         let video_select = document.getElementById('video-select');
@@ -241,7 +243,7 @@ window.api.handleEditorEvent( (event, cmd) => {
                 .attr('dominant-baseline', 'middle')
                 .text(percent);
         } else {
-                xScale.domain([0, player.duration()]);
+            xScale.domain([0, player.duration()]);
         }
     }
 
@@ -251,15 +253,34 @@ window.api.handleEditorEvent( (event, cmd) => {
 
     function changeVideo(play) {
         let video = document.getElementById('video-select').value;
+        let length = get_video_length(video);
+        console.log(`length == ${length}`);
+        if (length === null) {
+            length = player.duration();
+        }
 
         window.api.getIntervalsWatched(video)
             .then(view => { console.log(view); intervalsWatched = view; })
         
         player.src({ type: 'video/youtube', src: `https://youtu.be/${video}` });
+
+        xScale = d3.scaleLinear()
+            .domain([0, length])
+            .range([0, 600]);
+
         if (play) {
             player.play();
         }
 
+    }
+
+    function get_video_length(video_to_find) {
+        for (let video of video_data) {
+            if (video.id === video_to_find) {
+                return video.length;
+            }
+        }
+        return null;
     }
 
 </script>

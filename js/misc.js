@@ -11,6 +11,50 @@ function swapArrayItems(u, v, array) {
 }
 
 /******************************************************************************
+ * Tests to see if a number is between (inclusive) two values 
+ */
+
+function between(u, a, b) {
+    return (u >= a) && (u <= b);
+}
+
+/******************************************************************************
+ * Tests to see if a number is within an interval (endpoint inclusive) 
+ */
+
+function in_interval(u, int) {
+    return (u >= int[0]) && (u <= int[1]);
+}
+
+/******************************************************************************
+ * Sorts an array of intervals from smallest to largest
+ */
+function sort_intervals(intervals_watched) {
+
+    if (intervals_watched.length >= 2) {
+
+        for (let i = 0; i < intervals_watched.length - 1; i++) {
+            for (let j = i+1; j < intervals_watched.length; j++) {
+
+            let [begin_first, end_first] = intervals_watched[i];
+            let [begin_next, end_next] = intervals_watched[j];
+
+            // Check to make sure the intervals are valid:
+            if ((end_first < begin_first) || (end_next < begin_next)) {
+                console.log(`ERROR! Interval is inverted! ${intervals_watched}`);
+            } else if (begin_next < begin_first) {
+                intervals_watched = swapArrayItems(i, j, intervals_watched);
+            }
+
+            }
+        }
+
+    }
+
+    return intervals_watched;
+}
+
+/******************************************************************************
  * Takes a time stamp and adds it to an interval of values that have been
  *  played back. If it is a timestamp that is more than 3 seconds from another
  *  timestamp, it creates a new interval. Thus the intervals are an array of
@@ -32,29 +76,8 @@ function addToPlayedIntervals(current_time, intervals_watched) {
 
     } else {
 
-      // Sort the array, if necessary
-    if (intervals_watched.length >= 2) {
-
-        for (let i = 0; i < intervals_watched.length - 1; i++) {
-          for (let j = i+1; j < intervals_watched.length; j++) {
-
-            let begin_first = intervals_watched[i][0];
-            let end_first = intervals_watched[i][1];
-  
-            let begin_next = intervals_watched[j][0];
-            let end_next = intervals_watched[j][1];
-  
-            // Check to make sure the intervals are valid:
-            if ((end_first < begin_first) || (end_next < begin_next)) {
-              console.log(`ERROR! Interval is inverted! ${intervals_watched}`);
-            } else if (begin_next < begin_first) {
-              intervals_watched = swapArrayItems(i, j, intervals_watched);
-            }
-
-          }
-        }
-
-      }
+        // Sort the intervals, if necessary
+        intervals_watched = sort_intervals(intervals_watched);
 
       // Check to see if any adjacent time intervals can be joined
       for (let i = 0; i < intervals_watched.length - 1; i++) {
@@ -385,4 +408,13 @@ function drawHorizontalLine(svg, yloc) {
         .attr('y1', yloc)
         .attr('x2', 400)
         .attr('y2', yloc)
+}
+
+if (typeof(module) !== 'undefined') {
+    module.exports = { 
+        swapArrayItems, 
+        between, 
+        in_interval,
+        sort_intervals
+    };
 }
