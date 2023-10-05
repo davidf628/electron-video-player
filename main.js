@@ -5,6 +5,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('node:path')
 const fs = require('fs');
 const fsPromises = require('fs').promises;
+const misc = require('./js/misc.js');
 
 const version = "0.4.3";
 
@@ -16,25 +17,22 @@ const createWindow = () => {
         webPreferences: {
         preload: path.join(__dirname, 'preload.js')
         }
-    })
+    });
  
     // and load the index.html of the app.
     mainWindow.loadFile('index.html');
-
     console.log(app.getPath('userData'));
 
-
-
-  ipcMain.on('save-video-data', (event, data) => {
-      console.log(`VIDEO ID == ${data.video_id}`);
-      let payload = `\n${JSON.stringify(data)}`
-      fs.appendFile('./output.data', payload, (err) => {
-          if (err) {
-              console.error(`An error occured while writing to the file ...`);
-          } else {
-              console.log(`... was written successfully!`);
-          }
-      });
+    ipcMain.on('save-video-data', (event, data) => {
+        console.log(`VIDEO ID == ${data.video_id}`);
+        let payload = `\n${JSON.stringify(data)}`
+        fs.appendFile('./output.data', payload, (err) => {
+            if (err) {
+                console.error(`An error occured while writing to the file ...`);
+            } else {
+                console.log(`... was written successfully!`);
+            }
+        });
 
 });
 
@@ -128,18 +126,12 @@ async function get_intervals_watched(event, video) {
         //console.log(obj);
         //console.log(`looking for == ${JSON.stringify(video)}`);
         if (video === obj.video_id) {
-            view_data.push(obj.intervals_watched);
+            view_data = misc.union_intervals(obj.intervals_watched, view_data);
             //console.log(obj.intervals_watched);
         }
     }
 
-    // return the intervals found, or an empty set if none were found
-    // this will need to be updated to combine multiple read results
-    if (view_data.length === 0) {
-        return [ [0, 0] ]
-    } else {
-        return view_data[0];
-    }
+    return view_data;
 
 }
 

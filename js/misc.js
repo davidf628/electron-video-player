@@ -55,6 +55,25 @@ function sort_intervals(intervals_watched) {
 }
 
 /******************************************************************************
+ * Combines adjacent intervals that are overlapping, or are within 3 seconds
+ *  of each other
+ */
+function combine_adjacent_intervals(intervals_watched) {
+
+    for (let i = 0; i < intervals_watched.length - 1; i++) {
+
+        let [begin_current, end_current] = intervals_watched[i];
+        let [begin_next, end_next] = intervals_watched[i+1];
+
+        if ( (Math.abs(begin_next - end_current) < 3) || (end_current > begin_next) ) {
+        intervals_watched.splice(i, 2, [begin_current, end_next]);
+        } 
+    }
+    return intervals_watched;
+}
+
+
+/******************************************************************************
  * Takes a time stamp and adds it to an interval of values that have been
  *  played back. If it is a timestamp that is more than 3 seconds from another
  *  timestamp, it creates a new interval. Thus the intervals are an array of
@@ -68,46 +87,37 @@ function addToPlayedIntervals(current_time, intervals_watched) {
     // Initialize array if the video has just been started
     if (intervals_watched.length == 0) {
 
-      if (current_time < 3) {
-        intervals_watched.push([0, current_time]);
-      } else {
-        intervals_watched.push([current_time, current_time + 1]);
-      }
+        if (current_time < 3) {
+            intervals_watched.push([0, current_time]);
+        } else {
+            intervals_watched.push([current_time, current_time + 1]);
+        }
 
     } else {
 
         // Sort the intervals, if necessary
         intervals_watched = sort_intervals(intervals_watched);
 
-      // Check to see if any adjacent time intervals can be joined
-      for (let i = 0; i < intervals_watched.length - 1; i++) {
+        // Combine any intervals that are overlapping
+        intervals_watched = combine_adjacent_intervals(intervals_watched);
 
-        let begin_current = intervals_watched[i][0];
-        let end_current = intervals_watched[i][1];
-
-        let begin_next = intervals_watched[i+1][0];
-        let end_next = intervals_watched[i+1][1];
-
-        if (Math.abs(begin_next - end_current) < 3) {
-          intervals_watched.splice(i, 2, [begin_current, end_next]);
-        } 
-      }
-
-      // Check to see if the current time is within any of the intervals
-      //  if so, ignore this case
-      for (let interval of intervals_watched) {
-        let start = interval[0];
-        let end = interval[1];
-        if ((current_time > start) && (current_time < end)) {
-          return intervals_watched;
+        // Check to see if the current time is within any of the intervals
+        //  if so, ignore this case
+        for (let interval of intervals_watched) {
+            let [start, end] = interval;
+            //let start = interval[0];
+            //let end = interval[1];
+            if ((current_time > start) && (current_time < end)) {
+            return intervals_watched;
+            }
         }
-      }
 
       // Check to see if the current time is within 3 seconds of the end
       //  of any interval, if so, then extend that interval
       for (let interval of intervals_watched) {
-        let start = interval[0];
-        let end = interval[1];
+        let [start, end] = interval;
+        //let start = interval[0];
+        //let end = interval[1];
 
         if (Math.abs(current_time - end) < 3)  {
 
@@ -123,8 +133,9 @@ function addToPlayedIntervals(current_time, intervals_watched) {
       // Check to see if the current time is within 3 seconds of the
       //  start of any interval, if so, then extend that interval
       for (let interval of intervals_watched) {
-        let start = interval[0];
-        let end = interval[1];
+        let [start, end] = interval;
+        //let start = interval[0];
+        //let end = interval[1];
 
         if (Math.abs(start - current_time) < 3) {
 
@@ -143,10 +154,10 @@ function addToPlayedIntervals(current_time, intervals_watched) {
       //  occurs
       for (let i = intervals_watched.length - 1; i >= 0; i--) {
 
-        let interval = intervals_watched[i];
-
-        let start = interval[0];
-        let end = interval[1];
+        //let interval = intervals_watched[i];
+        let [start, end] = intervals_watched[i];
+        //let start = interval[0];
+        //let end = interval[1];
 
         if (Math.abs(current_time - end) > 3) {
 
@@ -163,7 +174,80 @@ function addToPlayedIntervals(current_time, intervals_watched) {
 
     return intervals_watched;
 
-  }
+ }
+
+/******************************************************************************
+ * Combines two sets of intervals using the union operation
+ */
+function union_intervals(int1, int2) {
+
+    // int1 and int2 are passed by reference so make a copy
+    int1 = JSON.parse(JSON.stringify(int1));
+    int2 = JSON.parse(JSON.stringify(int2));
+
+    // check each interval within int2
+    for (let u of int2) {
+
+        let move_on = false;
+
+        // case 1: u is completely outside all intervals in int1
+        let outside_count = 0;
+        for (let int of int1) {
+            let [u_start, u_end] = u;
+            let [int_start, int_end] = int;
+            if ( ((u_start < int_start) && (u_end < int_start)) || ((u_start > int_end) && (u_end > int_end)) ) {
+                outside_count++;
+            }
+        }
+        if (outside_count === int1.length) {
+            int1.push(u);
+            move_on = true;
+        }
+
+        if (!move_on) {
+            // case 2: u is completely contained wihtin an interval of int1
+            for (let int of int1) {
+                let [u_start, u_end] = u;
+                if (in_interval(u_start, int) && in_interval(u_end, int)) {
+                    move_on = true;
+                }
+            }
+        }
+
+        if (!move_on) {
+            let index = 0;
+            for (let int of int1) {
+                let [u_start, u_end] = u;
+                let [int_start, int_end] = int;
+
+                // case 3: u completely contains an interval
+                if ((u_start <= int_start) && (u_end >= int_end)) {
+                    int1.splice(index, 1, u);
+                }
+
+                // case 4: u contains a lower bound
+                if ( (u_start < int_start) && in_interval(u_end, int) ) {
+                    let new_int = [u_start, int_end];
+                    int1.splice(index, 1, new_int);
+                
+                // case 5: u contains an upper bound
+                } else if ( in_interval(u_start, int) && (u_end > int_end) ) {
+                    let new_int = [int_start, u_end];
+                    int1.splice(index, 1, new_int);
+                }
+                index++;
+            }
+        }
+
+        // Re-order and combine adjacent intervals for simpler testing
+        int1 = sort_intervals(int1);
+        int1 = combine_adjacent_intervals(int1);
+
+    }
+
+    return int1;
+
+}
 
 /******************************************************************************
  * Get the total percentage of the video viewed for a particular video, based
@@ -415,6 +499,8 @@ if (typeof(module) !== 'undefined') {
         swapArrayItems, 
         between, 
         in_interval,
-        sort_intervals
+        sort_intervals,
+        combine_adjacent_intervals,
+        union_intervals
     };
 }

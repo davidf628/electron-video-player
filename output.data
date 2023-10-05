@@ -1,3 +1,6 @@
 {"video_id":"NAUcEM98xqs","student_name":"Bob","student_id":"291824","score":2,"intervals_watched":[[0,6.757078938964844],[272.16822107081174,282.29773693515017]],"timestamp":"2023-10-03T23:18:55.975Z"}
 {"video_id":"pKdi1Kz0eJU","student_name":"","student_id":"","score":1,"intervals_watched":[[0,9.069956897003173]],"timestamp":"2023-10-04T01:50:23.696Z"}
 {"video_id":"pKdi1Kz0eJU","student_name":"bill","student_id":"73294","score":2,"intervals_watched":[[0,13.011712057220459]],"timestamp":"2023-10-04T01:57:08.417Z"}
+{"video_id":"NAUcEM98xqs","student_name":"bob","student_id":"1234","score":6,"intervals_watched":[[0,6.757078938964844],[90.36223096376038,122.59816033187866],[272.16822107081174,282.29773693515017]],"timestamp":"2023-10-05T00:10:44.471Z"}
+{"video_id":"NAUcEM98xqs","student_name":"bob","student_id":"1234","score":8,"intervals_watched":[[0,23.56009018310547],[90.36223096376038,122.59816033187866],[272.16822107081174,282.29773693515017]],"timestamp":"2023-10-05T00:11:26.001Z"}
+{"video_id":"pKdi1Kz0eJU","student_name":"bob","student_id":"1234","score":5,"intervals_watched":[[0,13.011712057220459],[142.69867416021728,160.40448125177002]],"timestamp":"2023-10-05T00:11:46.666Z"}
