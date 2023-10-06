@@ -39,7 +39,9 @@
 <!-- This is the code for the video playback inteface -->
 
 <div id="video">
-    <input type="button" value="Play Video" onclick="player.play()" />
+    
+    <h2 id="video-title">1-1 Lecture</h2>
+
     <video
         id="vid1"
         class="video-js vjs-default-skin"
@@ -48,33 +50,37 @@
         width="640" height="480"
 
         data-setup='{ 
-            "muted": true, 
+            "muted": false, 
             "controls": false,
             "techOrder": ["youtube", "html5"], 
             "sources": [
-                { "type": "video/youtube", "src": "https://youtu.be/NAUcEM98xqs"}], 
+                { "type": "video/youtube", "src": "https://youtu.be/pKdi1Kz0eJU"}], 
             "youtube": { "ytControls": 2 }  }'
-      ></video>
+    ></video>
 
-      <script src="./node_modules/video.js/dist/video.js"></script>
-      <script src="./dist/Youtube.js"></script>
+    <script src="./node_modules/video.js/dist/video.js"></script>
+    <script src="./dist/Youtube.js"></script>
+    
+    <br/><br/>
 
-      <input type="button" value="Save Video" onclick="saveVideo(intervalsWatched)" />
+    <input type="button" value="Play Video" onclick="playCurrentVideo()" />&emsp;&emsp;
+    <input type="button" value="Save Video" onclick="saveVideo(currentVideo, intervalsWatched)" />&emsp;&emsp;
 
-      <label for="video-select">Select a video:</label>
-
-      <select id="video-select" onchange="changeVideo(this, true)">
+    <label for="video-select">Select a new video:</label>
+    <select id="video-select" onchange="changeVideo(this, true)">
         <option value="item1">Item 1</option>
         <option value="item2">Item 2</option>
         <option value="item3">Item 3</option>
         <option value="item4">Item 4</option>
-      </select> 
+    </select>
 
-      <div id="status-bar">
-          <svg id="status-background">
+    <br/><br/>
 
-          </svg>
-      </div>
+    <div id="status-bar">
+        <svg id="status-background">
+
+        </svg>
+    </div>
 </div>
 
 
@@ -92,6 +98,9 @@
 
     // Hide the video display panel initially 
     document.getElementById('video').style.display = 'none';
+
+    // Preserve the current video loaded in the player
+    currentVideo = 'pKdi1Kz0eJU';
 
     // Set up the svg area for drawing the status bar
     let xScale = d3.scaleLinear().range([0, 600]);
@@ -182,12 +191,14 @@ window.api.handleEditorEvent( (event, cmd) => {
      *  current view information to disk.
      */
 
-     function saveVideo(intervals_watched) {
-        let id = document.getElementById('video-select').value;
+     function saveVideo(id, intervals_watched) {
+
+        let title = get_video_title(id);
         let user = document.getElementById('username').value;
         let studentid = document.getElementById('studentid').value;
         const data = {
             video_id: id,
+            video_title: title,
             student_name: user,
             student_id: studentid,
             score: getPercentViewed(intervals_watched, player.duration()),
@@ -252,15 +263,24 @@ window.api.handleEditorEvent( (event, cmd) => {
      */
 
     function changeVideo(play) {
+
+        saveVideo(currentVideo, intervalsWatched);
+        intervalsWatched = [];
+
         let video = document.getElementById('video-select').value;
         let length = get_video_length(video);
-        console.log(`length == ${length}`);
+        let title = get_video_title(video);
+        currentVideo = video;
+
         if (length === null) {
             length = player.duration();
         }
 
+        // Change video title display:
+        document.getElementById('video-title').innerHTML = title;
+
         window.api.getIntervalsWatched(video)
-            .then(view => { console.log(view); intervalsWatched = view; })
+            .then(view => { intervalsWatched = view; });
         
         player.src({ type: 'video/youtube', src: `https://youtu.be/${video}` });
 
@@ -274,10 +294,27 @@ window.api.handleEditorEvent( (event, cmd) => {
 
     }
 
+    function playCurrentVideo() {
+       intervalsWatched = [];
+       let video = document.getElementById('video-select').value;
+       window.api.getIntervalsWatched(video)
+            .then(view => { intervalsWatched = view; }); 
+        player.play();
+    }
+
     function get_video_length(video_to_find) {
         for (let video of video_data) {
             if (video.id === video_to_find) {
                 return video.length;
+            }
+        }
+        return null;
+    }
+
+    function get_video_title(video_to_find) {
+        for (let video of video_data) {
+            if (video.id === video_to_find) {
+                return video.title;
             }
         }
         return null;
