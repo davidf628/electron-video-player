@@ -1,28 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
-contextBridge.exposeInMainWorld(
-  
-  'api', {
-      send: (channel, data) => {
-        // whitelist channels
-        //let validChannels = ['toMain', 'send-version'];
-        //if (validChannels.includes(channel)) {
-          ipcRenderer.send(channel, data)
-        //}
-      },
-      receive: (channel, func) => {
-        //let validChannels = ['fromMain', 'get-version'];
-        //if (validChannels.includes(channel)) {
-          // Deliberatly strip event as it includes 'sender'
-          ipcRenderer.on(channel, (event, ...args) => func(...args));
-        //}
-      },
-      getVersion: () => ipcRenderer.invoke('get-version'),
-      get_video_data: () => ipcRenderer.invoke('get-video-data'),
-      getIntervalsWatched: (video) => ipcRenderer.invoke('get-intervals-watched', video),
-      saveVideo: (data) => ipcRenderer.send('save-video-data', data),
-      openDirectory: () => ipcRenderer.send('open-directory'),
-
-      handleEditorEvent: (callback) => ipcRenderer.on('editor-event', callback),
-    
+contextBridge.exposeInMainWorld('api', {
+    getVersion: () => ipcRenderer.invoke('get-version'),
+    get_video_data: () => ipcRenderer.invoke('get-video-data'),
+    getIntervalsWatched: (video) => ipcRenderer.invoke('get-intervals-watched', video),
+    getDefaultSettings: () => ipcRenderer.invoke('get-default-settings'),
+    saveVideo: (data) => ipcRenderer.send('save-video-data', data),
+    setUserData: (username, id) => ipcRenderer.send('set-user-data', username, id),
+    createNewFile: () => ipcRenderer.send('create-new-video-database'),
+    openExistingFile: () => ipcRenderer.send('open-video-database'),
+    invokeSaveAction: (callback) => ipcRenderer.on('request-save-action', callback),
 });

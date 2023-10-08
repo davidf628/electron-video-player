@@ -29,9 +29,11 @@
     <input id="username" type="input" placeholder="Name (First and Last)" />
     <input id="studentid" type="input" placeholder="StudentID" />
     <br/><br/>
-    <input type="button" value="Create New Video Database" onclick="showVideoTab()">
+    <p id="video-file"></p>
+    <input type="button" value="Use Current File" onclick="startProgram()" />
     <br/><br/>
-    <input type="button" value="Open Existing Video Database" onclick="showVideoTab()">
+    <input type="button" value="New Video Database" onclick="createNewDatabase()" />
+    <input type="button" value="Open Video Database" onclick="openVideoDatabase()" />
 
 </div>
 
@@ -66,8 +68,24 @@
     <input type="button" value="Play Video" onclick="playCurrentVideo()" />&emsp;&emsp;
     <input type="button" value="Save Video" onclick="saveVideo(currentVideo, intervalsWatched)" />&emsp;&emsp;
 
-    <label for="video-select">Select a new video:</label>
-    <select id="video-select" onchange="changeVideo(this, true)">
+    <label for="module-select">Module:</label>
+    <select id="module-select" onchange="changeModule()">
+        <option value="item1">Item 1</option>
+        <option value="item2">Item 2</option>
+        <option value="item3">Item 3</option>
+        <option value="item4">Item 4</option>
+    </select>&emsp;&emsp;
+
+    <label for="lesson-select">Lesson:</label>
+    <select id="lesson-select" onchange="changeLesson()">
+        <option value="item1">Item 1</option>
+        <option value="item2">Item 2</option>
+        <option value="item3">Item 3</option>
+        <option value="item4">Item 4</option>
+    </select>&emsp;&emsp;
+
+    <label for="video-select">Video:</label>
+    <select id="video-select" onchange="changeVideo(true)">
         <option value="item1">Item 1</option>
         <option value="item2">Item 2</option>
         <option value="item3">Item 3</option>
@@ -90,17 +108,22 @@
 
     // -------- Setup code ---------
 
+    // Preserve the current video loaded in the player
+    currentVideo = 'pKdi1Kz0eJU';
+    currentModule = 1;
+    currentLesson = 1;
+
     // Set the window title to contain the current version number
     setVersion();
 
     // Retrieve the current list of videos playable on YouTube
     setVideoOptions();
 
+    // Retrieve the current username, id, and data file on record
+    getDefaultSettings();
+
     // Hide the video display panel initially 
     document.getElementById('video').style.display = 'none';
-
-    // Preserve the current video loaded in the player
-    currentVideo = 'pKdi1Kz0eJU';
 
     // Set up the svg area for drawing the status bar
     let xScale = d3.scaleLinear().range([0, 600]);
@@ -132,59 +155,233 @@
             }, 1000);
     });
 
-    
-
-
-window.api.handleEditorEvent( (event, cmd) => {
-    switch(cmd.action) {
-        case 'set-version':
-            window.document.title = `Version: ${cmd.data}`;
-            break;
-        case 'set-directory':
-            document.getElementById("svg-path").innerText = cmd.data;
-            break;
-        default:
-            break;    
-    };
+window.api.invokeSaveAction( (event) => {
+    saveVideo(currentVideo, intervalsWatched);
 });
 
-    /*****************************************************************************
-     * Call the backend to find out what the current version of the program is
-     *  and display that in the window title.
-     */
+/******************************************************************************
+ * The entry point for the main video interface
+ */
+function startProgram() {
 
-    async function setVersion() {
-        let version = await window.api.getVersion();
-        window.document.title = `MATH 104 Video Player v${version}`;
+    // send username, student id, and video file back to main program
+    let student_name = document.getElementById('username').value;
+    let student_id = document.getElementById('studentid').value;
+    window.api.setUserData(student_name, student_id);
+    showVideoTab();
+
+}
+
+
+/******************************************************************************
+ * Opens a save file dialog and allows the use to create a new file for saving
+ *  video results.
+ */
+
+function createNewDatabase() {
+    window.api.createNewFile();
+    window.api.getDefaultSettings()
+        .then((prefs) => {
+            document.getElementById('video-file').innerHTML = prefs.data_file;
+        });
+}
+
+
+/******************************************************************************
+ * Opens a dialog that allows the user to choose a video database file that
+ *  exists already and load it into memory.
+ */
+
+ function openVideoDatabase() {
+    window.api.openExistingFile();
+    window.api.getDefaultSettings()
+        .then((prefs) => {
+            document.getElementById('video-file').innerHTML = prefs.data_file;
+        });
+ }
+
+/*****************************************************************************
+ * Call the backend to find out what the current version of the program is
+ *  and display that in the window title.
+ */
+
+async function setVersion() {
+    let version = await window.api.getVersion();
+    window.document.title = `MATH 104 Video Player v${version}`;
+}
+
+
+/******************************************************************************
+ * Call the backend to get the default settings of username, studentID, and 
+ *  data file saved in the user preferences and load them if they exist
+ */
+function getDefaultSettings() {
+    window.api.getDefaultSettings()
+        .then((prefs) => {
+            document.getElementById('username').value = prefs.user_name;
+            document.getElementById('studentid').value = prefs.student_id;
+            document.getElementById('video-file').innerHTML = prefs.data_file;
+        });
+}
+
+/******************************************************************************
+ * Get a list of all the current videos that can be played, and places them 
+ *  into a select box so the user can change videos. 
+ */
+
+async function setVideoOptions() {
+    let buffer = await window.api.get_video_data();
+    video_data = buffer;
+
+    let module_list = [];
+    let lesson_list = [];
+    let video_list = [];
+
+    // Get a list of all videos in the currently selected 
+    for (let video of video_data) {
+
+        if (!module_list.includes(video.module)) {
+            module_list.push(video.module);
+        }
+
+        if ((video.module == currentModule) && !lesson_list.includes(video.lesson)) {
+            lesson_list.push(video.lesson);
+        }
+
+        if ((video.module == currentModule) && (video.lesson == currentLesson)) {
+            video_list.push(video);
+        }
     }
+
+    // Add Module Options
+    let module_select = document.getElementById('module-select');
+    while (module_select.length > 0) {
+        module_select.remove(0);
+    }
+    for (let module of module_list) {
+        let option = document.createElement('option');
+        option.text = `Module ${module}`;
+        option.value = module;
+        module_select.add(option, null);
+    }
+
+    // Add Lesson Options
+    let lesson_select = document.getElementById('lesson-select');
+    while (lesson_select.length > 0) {
+        lesson_select.remove(0);
+    }
+    for (let lesson of lesson_list) {
+        let option = document.createElement('option');
+        option.text = `Lesson ${lesson}`;
+        option.value = lesson;
+        lesson_select.add(option, null);
+    }
+
+    // get reference to video list
+    let video_select = document.getElementById('video-select');
+
+    // remove current video options
+    while (video_select.length > 0) {
+        video_select.remove(0);
+    }
+
+    // add the YouTube video links
+    for (let video of video_list) {
+        let option = document.createElement('option');
+        option.text = video.name;
+        option.value = video.youtube_id;
+        video_select.add(option, null);
+    }
+
+}
+
+function changeModule() {
+
+    currentModule = document.getElementById('module-select').value;
     
-    /******************************************************************************
-     * Get a list of all the current videos that can be played, and places them 
-     *  into a select box so the user can change videos. 
-     */
+    // By default, choose lesson 1 when a new module is selected
+    currentLesson = 1;
 
-    async function setVideoOptions() {
-        let buffer = await window.api.get_video_data();
-        video_data = buffer;
+    let lesson_list = [];
+    let video_list = [];
 
-        // get reference to video list
-        let video_select = document.getElementById('video-select');
+    // Get a list of all the  
+    for (let video of video_data) {
 
-        // remove current video options
-        while (video_select.length > 0) {
-            video_select.remove(0);
+        // Get a list of all the lessons in the newly selected module
+        if ((video.module == currentModule) && !lesson_list.includes(video.lesson)) {
+            lesson_list.push(video.lesson);
         }
 
-        // add the YouTube video links
-        for (let video in video_data) {
-            let option = document.createElement('option');
-            option.text = video_data[video].title;
-            option.value = video_data[video].id;
-            video_select.add(option, null);
+        // Get a list of all the videos in the newly selected module (lesson 1)
+        if ((video.module == currentModule) && (video.lesson == currentLesson)) {
+            video_list.push(video);
         }
-
     }
 
+    // Add Lesson Options
+    let lesson_select = document.getElementById('lesson-select');
+    while (lesson_select.length > 0) {
+        lesson_select.remove(0);
+    }
+    for (let lesson of lesson_list) {
+        let option = document.createElement('option');
+        option.text = `Lesson ${lesson}`;
+        option.value = lesson;
+        lesson_select.add(option, null);
+    }
+
+    // get reference to video list
+    let video_select = document.getElementById('video-select');
+
+    // remove current video options
+    while (video_select.length > 0) {
+        video_select.remove(0);
+    }
+
+    // add the YouTube video links
+    for (let video of video_list) {
+        let option = document.createElement('option');
+        option.text = video.name;
+        option.value = video.youtube_id;
+        video_select.add(option, null);
+    }
+
+    changeVideo(true);
+}
+
+function changeLesson() {
+
+    let currentLesson = document.getElementById('lesson-select').value;
+
+    let video_list = [];
+
+    for (let video of video_data) {
+
+        // Get a list of all the videos in the newly selected module (lesson 1)
+        if ((video.module == currentModule) && (video.lesson == currentLesson)) {
+            video_list.push(video);
+        }
+    }
+
+    // get reference to video list
+    let video_select = document.getElementById('video-select');
+
+    // remove current video options
+    while (video_select.length > 0) {
+        video_select.remove(0);
+    }
+
+    // add the YouTube video links
+    for (let video of video_list) {
+        let option = document.createElement('option');
+        option.text = video.name;
+        option.value = video.youtube_id;
+        video_select.add(option, null);
+    }
+
+    changeVideo(true);
+}
 
     /**************************************************************************
      * Sends the current view data to the backend in order to save the
@@ -192,7 +389,6 @@ window.api.handleEditorEvent( (event, cmd) => {
      */
 
      function saveVideo(id, intervals_watched) {
-
         let title = get_video_title(id);
         let user = document.getElementById('username').value;
         let studentid = document.getElementById('studentid').value;
@@ -304,8 +500,10 @@ window.api.handleEditorEvent( (event, cmd) => {
 
     function get_video_length(video_to_find) {
         for (let video of video_data) {
-            if (video.id === video_to_find) {
-                return video.length;
+            if (video.youtube_id === video_to_find) {
+                let [min, sec] = video.length.split(':');
+                let len = parseInt(min) * 60 + parseInt(sec);
+                return len;
             }
         }
         return null;
@@ -313,8 +511,8 @@ window.api.handleEditorEvent( (event, cmd) => {
 
     function get_video_title(video_to_find) {
         for (let video of video_data) {
-            if (video.id === video_to_find) {
-                return video.title;
+            if (video.youtube_id === video_to_find) {
+                return video.name;
             }
         }
         return null;
