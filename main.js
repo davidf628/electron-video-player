@@ -1,16 +1,15 @@
 // main.js
 
 // Modules to control application life and create native browser window
-const { app, BrowserWindow, ipcMain, dialog, Menu, MenuItem } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
-const fsPromises = require('node:fs').promises;
 const os = require('node:os');
 const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const misc = require('./js/misc.js');
 
-const version = "1.0.0";
+const version = app.getVersion();
 let pref_file = 'video_player_prefs.json';
 let backup_filename = 'userdata.backup';
 let user_prefs = {};
@@ -35,64 +34,6 @@ const createWindow = () => {
     return mainWindow;
 
 };
-
-const menu = new Menu()
-menu.append(new MenuItem({
-    label: 'Application Data',
-    submenu: [{
-        role: 'help',
-        visible: false,
-        accelerator: process.platform === 'darwin' ? 'Alt+Cmd+F' : 'Alt+Shift+F',
-        click: () => { 
-            dialog.showMessageBoxSync(null, { 
-                message: `${app.getPath('appData')}`,
-                title: 'Applicaiton Data Folder'
-            });
-        }
-    },
-    {
-        role: 'help',
-        visible: false,
-        accelerator: process.platform === 'darwin' ? 'Alt+Cmd+P' : 'Alt+Shift+P',
-        click: () => { 
-            dialog.showMessageBoxSync(null, { 
-                message: `${JSON.stringify(user_prefs)}`,
-                title: 'Applicaiton Data Folder'
-            });
-        }
-    },
-    {
-        role: 'help',
-        visible: false,
-        accelerator: process.platform === 'darwin' ? 'Alt+Cmd+B' : 'Alt+Shift+B',
-        click: () => {
-            let backup_src = path.join(app.getPath('userData'), backup_filename);
-            let backup_dest = path.join(app.getPath('downloads'), backup_filename);
-            try {
-                fs.copyFileSync(backup_src, backup_dest);
-            } catch (error) {
-                dialog.showErrorBox('Copy File Error', 'There was an error trying to copy the backup file to your downloads folder.');
-            }
-            dialog.showMessageBoxSync(null, { 
-                message: 'Backup file copied to downloads folder.',
-                title: 'File Copied'
-            });
-        }
-    },
-    {
-        role: 'help',
-        click: () => { 
-            dialog.showMessageBoxSync(null, { 
-                message: `If you're running into issues, please take a screenshot of any errors you are experiencing and send those along with a description of the issue to your instructor.`,
-                title: 'Help'
-            });
-        }
-    }]
-}));
-
-//Menu.setApplicationMenu(menu);
-
-
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -418,3 +359,90 @@ function save_preferences(filename, prefs) {
     }
 
 }
+
+/******************************************************************************
+ * Below here is the application menu definition
+ */
+
+const template = [
+    {
+        role: 'help',
+        submenu: [
+            {
+                label: 'Help',
+                click: () => { 
+                    dialog.showMessageBoxSync(null, { 
+                        message: `If you're running into issues, please take a screenshot of any errors you are experiencing and send those along with a description of the issue to your instructor.`,
+                        title: 'Help'
+                    });
+                }
+                   
+            },
+            {
+                label: 'Copy Backup',
+                visible: true,
+                accelerator: process.platform === 'darwin' ? 'Alt+Cmd+B' : 'Alt+Shift+B',
+                click: () => {
+                    let backup_src = path.join(app.getPath('userData'), backup_filename);
+                    let backup_dest = path.join(app.getPath('downloads'), backup_filename);
+                    try {
+                        fs.copyFileSync(backup_src, backup_dest);
+                    } catch (error) {
+                        dialog.showErrorBox('Copy File Error', 'There was an error trying to copy the backup file to your downloads folder.');
+                    }
+                    dialog.showMessageBoxSync(null, { 
+                        message: 'Backup file copied to downloads folder.',
+                        title: 'File Copied'
+                    });
+                }
+            },
+            {
+                label: 'View User Preferences',
+                visible: true,
+                accelerator: process.platform === 'darwin' ? 'Alt+Cmd+P' : 'Alt+Shift+P',
+                click: () => { 
+                    dialog.showMessageBoxSync(null, { 
+                        message: `${JSON.stringify(user_prefs)}`,
+                        title: 'User Prefrences'
+                    });
+                }
+            
+            },
+            {
+                label: 'App Data Folder',
+                visible: false,
+                accelerator: process.platform === 'darwin' ? 'Alt+Cmd+F' : 'Alt+Shift+F',
+                click: () => { 
+                    dialog.showMessageBoxSync(null, { 
+                        message: `${app.getPath('appData')}`,
+                        title: 'Applicaiton Data Folder'
+                    });
+                }
+            },
+            {
+                role: 'toggleDevTools',
+                visible: false,
+            }
+        ]
+    }
+];
+
+if (process.platform === 'darwin') {
+    template.unshift({
+        label: app.getName(),
+        submenu: [
+            {
+                role: 'about',
+            },
+            {
+                type: 'separator',
+            },
+            {
+                role: 'quit',
+            }
+        ]
+    })
+}
+
+const menu = Menu.buildFromTemplate(template);
+Menu.setApplicationMenu(menu);
