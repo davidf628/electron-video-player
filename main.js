@@ -44,6 +44,7 @@ app.whenReady().then(() => {
     ipcMain.handle('get-intervals-watched', get_intervals_watched);
     ipcMain.handle('get-version', get_version_number);
     ipcMain.handle('get-default-settings', get_default_settings);
+    ipcMain.handle('get-appdata-folder', get_appdata_folder);
     ipcMain.on('save-video-data', save_progress_to_disk);
     ipcMain.on('set-user-data', set_user_data);
     ipcMain.on('create-new-video-database', create_new_database);
@@ -85,6 +86,10 @@ app.on('window-all-closed', () => {
  */
 async function get_default_settings() {
     return user_prefs;
+}
+
+async function get_appdata_folder() {
+    return app.getPath('appData');
 }
 
 async function create_new_database (event) {
