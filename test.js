@@ -1,6 +1,11 @@
 const fs = require('node:fs');
 const zlib = require('node:zlib');
 
+const misc = require('./js/misc.js');
+
+let arr = ['1.0.1', '1.0.0' ];
+console.log(misc.inArray('1.0.1', arr));
+
 function decode_data(buffer) {
     let data_uncompressed = '';
 
@@ -31,11 +36,11 @@ function encode_data(buffer) {
 // let decode = decode_data(encode);
 // console.log(`DECODED == ${decode}`);
 
-let data = fs.readFileSync('./output.data').toString();
-console.log(`\n\nDATA == \n\n\n${data}`);
+// let data = fs.readFileSync('./output.data').toString();
+// console.log(`\n\nDATA == \n\n\n${data}`);
 
-let decoded = decode_data(data);
-console.log(`\n\nDECODED == \n\n${decoded}`);
+// let decoded = decode_data(data);
+// console.log(`\n\nDECODED == \n\n${decoded}`);
 
 // data = atob(data);
 // console.log(`\n\nBUFFER == \n\n\n${data}`);

@@ -249,6 +249,22 @@ function union_intervals(int1, int2) {
 
 }
 
+
+/******************************************************************************
+ * Checks to see if a value is in an array or not
+ */
+
+function inArray(item, array) {
+
+    for (let value of array) {
+        if (value === item) {
+            return true;
+        }
+    }
+    return false;
+
+}
+
 /******************************************************************************
  * Get the total percentage of the video viewed for a particular video, based
  * on the current viewed intervals, returns a number, rounded to the nearest
@@ -501,6 +517,7 @@ if (typeof(module) !== 'undefined') {
         in_interval,
         sort_intervals,
         combine_adjacent_intervals,
-        union_intervals
+        union_intervals,
+        inArray
     };
 }

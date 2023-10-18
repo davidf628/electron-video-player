@@ -302,15 +302,25 @@ async function get_version_number () {
                 [curmajor, curminor, curinc] = curversion.split('.');
                 [thismajor, thisminor, thisinc] = version.split('.');
                 if (thismajor < curmajor) {
-                    dialog.showErrorBox('New Version Available', 'There is a new version of this software available which is different enough that you need to downlaod and install the latest available in OAKS.');
+                    dialog.showErrorBox('New Version Available', `There is a new major version of this software available (version ${curversion}) and you need to downlaod and install the latest available in OAKS.`);
                     process.exit(0);
                 } else if ((thismajor == curmajor) && ((thisminor != curminor) || (thisinc != curinc))) {
-                    dialog.showErrorBox('New Version Available', 'There is a new version of this software available, you should download it and install the new version when you get a chance.');
+                    if (!user_prefs.ignored_versions.includes(curversion)) {
+                        let buttonPressed = dialog.showMessageBoxSync(null, { 
+                            title: 'New Version Available', 
+                            message: `There is a new minor version of this software available (version ${curversion}), you should download it and install the new version when you get a chance, but it is not necessary.`,
+                            buttons: [ 'Remind me Later', 'Ignore this version' ],
+                            cancelId: 0,
+                        });
+                        if (buttonPressed == 1) {
+                            user_prefs.ignored_versions.push(curversion);
+                        }
+                    }
                 }
             }
         }
     } catch(error) {
-        dialog.showErrorBox('Network Error', 'Could not read current version information online. No big deal, but you should check your internet connection before proceeding.');
+        dialog.showErrorBox('Network Error', `Could not read current version information online. No big deal, but you should check your internet connection before proceeding. \n\nError\n\n${error}`);
     }
 
     return version;
@@ -335,6 +345,7 @@ function load_preferences(filename) {
             user_name: saved_prefs.user_name ? saved_prefs.user_name : '',
             student_id: saved_prefs.student_id ? saved_prefs.student_id : '',
             data_file: saved_prefs.data_file ? saved_prefs.data_file : '',
+            ignored_versions: saved_prefs.ignored_versions ? saved_prefs.ignored_versions : [],
         }
         return prefs;
     } else {
