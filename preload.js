@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld('api', {
     openExistingFile: () => ipcRenderer.send('open-video-database'),
     invokeSaveAction: (callback) => ipcRenderer.on('request-save-action', callback),
     getAppdataFolder: () => ipcRenderer.invoke('get-appdata-folder'),
+    showMessageDialog: (title, message) => ipcRenderer.send('show-message-dialog', title, message),
 });

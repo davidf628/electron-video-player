@@ -49,6 +49,7 @@ app.whenReady().then(() => {
     ipcMain.on('set-user-data', set_user_data);
     ipcMain.on('create-new-video-database', create_new_database);
     ipcMain.on('open-video-database', open_video_database);
+    ipcMain.on('show-message-dialog', show_message_dialog);
 
     let mainWindow = createWindow();
     mainWindow.on('close', () => {
@@ -218,28 +219,25 @@ function save_progress_to_disk (event, data) {
     data.fingerprint = crypto.createHash('md5').update(`${data.timestamp}${data.student_id}`).digest('hex');
     let payload = `${JSON.stringify(data)}\n`;
 
+    // Write everything to the backup file no matter what
     let backup_file = path.join(app.getPath('userData'), backup_filename);
-
     try {
         fs.appendFileSync(backup_file, payload);
+    } catch (err) { }
 
-    } catch (err) {
+    if (user_prefs.data_file !== '') {
+        try {
+            // Combine the new data with the data already saved on disk
+            let current_data = read_data_from_disk(user_prefs.data_file);
+            let buffer = `${current_data}${payload}`;
 
-    }
-
-    // Combine the new data with the data already saved on disk
-    let current_data = read_data_from_disk(user_prefs.data_file);
-
-    let buffer = `${current_data}${payload}`;
-
-    // Zip the data up to save space and encode it in base64
-    buffer = encode_data(buffer);
-
-    try {
-        fs.writeFileSync(user_prefs.data_file, buffer);
-        dialog.showMessageBoxSync(mainWindow, { message: "File saved." });
-    } catch (error) {
-        dialog.showErrorBox("Error writing file", "An error occurred while attempting to save data.");
+            // Zip the data up to save space and encode it in base64
+            buffer = encode_data(buffer);
+            fs.writeFileSync(user_prefs.data_file, buffer);
+            dialog.showMessageBoxSync(mainWindow, { message: `Current view information saved to file:\n\n${user_prefs.data_file}` });
+        } catch (error) {
+            dialog.showErrorBox("Error writing file", "An error occurred while attempting to save data.");
+        }
     }
 }
 
@@ -326,6 +324,14 @@ async function get_version_number () {
     return version;
 }
 
+/******************************************************************************
+ * Shows a message dialog that is prompted from the browser window
+ */
+
+function show_message_dialog(event, title, message) {
+
+    dialog.showMessageBoxSync(null, { title: title, message: message });
+}
 
 /******************************************************************************
  * Loads user preferences from disk, currently this is the window width and

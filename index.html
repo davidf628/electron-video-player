@@ -172,7 +172,18 @@ function startProgram() {
     let student_name = document.getElementById('username').value;
     let student_id = document.getElementById('studentid').value;
     window.api.setUserData(student_name, student_id);
-    showVideoTab();
+
+    // Check to see if a .vdb file has been created and is active
+    window.api.getDefaultSettings()
+        .then((prefs) => {
+            if (prefs.data_file !== '') {
+                showVideoTab();
+            } else {
+                window.api.showMessageDialog('Error', 'You first have to create or open a video database file to begin.');
+            }
+        });
+
+    
 
 }
 
