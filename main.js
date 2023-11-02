@@ -388,6 +388,26 @@ function save_preferences(filename, prefs) {
 
 const template = [
     {
+        label: 'File',
+        submenu: [
+            {
+                label: 'Show vdb File Location',
+                accelerator: process.platform === 'darwin' ? 'Alt+Cmd+L' : 'Alt+Shift+L',
+                click: () => {
+                    if (fs.existsSync(user_prefs.data_file)) {
+                        shell.showItemInFolder(user_prefs.data_file);
+                    } else {
+                        dialog.showMessageBoxSync(null, { 
+                            message: 'The video database file could not be located, have you created it already? If not, press the "New Video Database" button at the start of the program',
+                            title: 'File Not Found'
+                        });
+                    }
+                    
+                }
+            }
+        ]
+    },
+    {
         role: 'help',
         submenu: [
             {
