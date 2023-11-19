@@ -184,7 +184,8 @@
     player.ready(() => {
         xScale.domain([0, player.duration()]);
 
-        myTimer = setInterval(
+        // Update the progress bar at 1 second intervals
+        progressTimer = setInterval(
             function () { 
                 displayStudentInfo();
                 intervalsWatched = addToPlayedIntervals(player.currentTime(), intervalsWatched);
@@ -192,6 +193,14 @@
                 //xScale.range([0, main_progressbar_options.width]);
                 drawProgress(intervalsWatched, player.duration(), '#main-progress-bar-container', main_progressbar_options); 
             }, 1000);
+
+        // Update the user data and save the data at 5 second intervals
+        dataTimer = setInterval(
+            function () { 
+                displayStudentInfo();
+                intervalsWatched = addToPlayedIntervals(player.currentTime(), intervalsWatched);
+                saveVideo(currentVideo, intervalsWatched);
+            }, 5000);
     });
 
 /******************************************************************************
@@ -499,46 +508,50 @@ function changeLesson() {
     }
 
     function displayStudentInfo() {
-        let student_info = d3.select('#student-info-svg');
-        student_info.select('#text').remove();
-        student_info
-            .append('g')
-            .attr('id', 'text');
-        let textbox = d3.select('#student-info-svg').select('#text');
-        textbox
-            .append('text')
-            .attr('id', 'student-name')
-            .attr('fill', 'black')
-            .attr('x', 300)
-            .attr('text-anchor', 'end')
-            .attr('y', 12)
-            .style('font-family', 'Helvetica')
-            .style('font-size', 12)
-            .style('font-weight', 'normal')
-            .text(`Name: ${user_data.user_name ? user_data.user_name : '' }`);
-        textbox
-            .append('text')
-            .attr('id', 'current-date')
-            .attr('fill', 'black')
-            .attr('x', 300)
-            .attr('text-anchor', 'end')
-            .attr('y', 24)
-            .style('font-family', 'Helvetica')
-            .style('font-size', 12)
-            .style('font-weight', 'normal')
-            .text(`Date: ${new Date().toDateString()}`);
-        textbox
-            .append('text')
-            .attr('id', 'current-date')
-            .attr('fill', 'black')
-            .attr('x', 300)
-            .attr('text-anchor', 'end')
-            .attr('y', 36)
-            .style('font-family', 'Helvetica')
-            .style('font-size', 12)
-            .style('font-weight', 'normal')
-            .text(`Completion Date: `);
-
+        
+        window.api.get_completion_date(currentVideo)
+            .then((completion_date) => {
+                let student_info = d3.select('#student-info-svg');
+                student_info.select('#text').remove();
+                student_info
+                    .append('g')
+                    .attr('id', 'text');
+                let textbox = d3.select('#student-info-svg').select('#text');
+                textbox
+                    .append('text')
+                    .attr('id', 'student-name')
+                    .attr('fill', 'black')
+                    .attr('x', 300)
+                    .attr('text-anchor', 'end')
+                    .attr('y', 12)
+                    .style('font-family', 'Helvetica')
+                    .style('font-size', 12)
+                    .style('font-weight', 'normal')
+                    .text(`Name: ${user_data.user_name ? user_data.user_name : '' }`);
+                textbox
+                    .append('text')
+                    .attr('id', 'current-date')
+                    .attr('fill', 'black')
+                    .attr('x', 300)
+                    .attr('text-anchor', 'end')
+                    .attr('y', 24)
+                    .style('font-family', 'Helvetica')
+                    .style('font-size', 12)
+                    .style('font-weight', 'normal')
+                    .text(`Date: ${new Date().toDateString()}`);
+                textbox
+                    .append('text')
+                    .attr('id', 'current-date')
+                    .attr('fill', 'black')
+                    .attr('x', 300)
+                    .attr('text-anchor', 'end')
+                    .attr('y', 36)
+                    .style('font-family', 'Helvetica')
+                    .style('font-size', 12)
+                    .style('font-weight', 'normal')
+                    .text(`Completion Date: ${completion_date ? completion_date : ''}`);
+            });
+ 
     }
 
 /******************************************************************************
@@ -576,7 +589,7 @@ function changeLesson() {
 
         xScale = d3.scaleLinear()
             .domain([0, length])
-            .range([0, 600]);
+            .range([0, main_progressbar_options.width]);
 
         if (play) {
             player.play();
@@ -585,9 +598,9 @@ function changeLesson() {
     }
 
     function playCurrentVideo() {
-       intervalsWatched = [];
-       let video = document.getElementById('video-select').value;
-       window.api.getIntervalsWatched(video)
+        intervalsWatched = [];
+        let video = document.getElementById('video-select').value;
+        window.api.getIntervalsWatched(video)
             .then(view => { intervalsWatched = view; }); 
         player.play();
     }

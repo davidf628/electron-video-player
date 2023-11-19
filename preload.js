@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('api', {
     getIntervalsWatched: (video) => ipcRenderer.invoke('get-intervals-watched', video),
     get_user_data: () => ipcRenderer.invoke('get-user-data'),
 
+    // Gets the date for when a video was fully completed
+    get_completion_date: (video) => ipcRenderer.invoke('get-completion-date', video),
+
     // Send the current view data from the frontend to the backend for saving
     save_video_data: (data) => ipcRenderer.send('save-video-data', data),
 

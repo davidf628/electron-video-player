@@ -45,6 +45,7 @@ app.whenReady().then(() => {
     ipcMain.handle('get-version', get_version_number);
     ipcMain.handle('get-user-data', get_user_data);
     ipcMain.handle('get-appdata-folder', get_appdata_folder);
+    ipcMain.handle('get-completion-date', get_completion_date);
     ipcMain.on('save-video-data', save_progress_to_disk);
     ipcMain.on('set-user-data', set_user_data);
     ipcMain.on('show-message-dialog', show_message_dialog);
@@ -92,6 +93,32 @@ async function get_appdata_folder() {
 }   
 
 /******************************************************************************
+ * Determines the date that a video was completed and returns that to the
+ *  front end
+ */
+
+async function get_completion_date(event, video) {
+    let completion_date = '';
+
+    // read the data file - will need to change this to student selected file
+    let data = read_data_from_disk(data_filename);
+    
+    if (data != null) {
+
+        let json_data = JSON.parse(data);
+
+        for (let view of json_data) {
+            if (view.video_id === video) {
+                return view.completion_date;
+            }
+        }
+   
+    } 
+    
+    return completion_date;
+}
+
+/******************************************************************************
  * This function calls my website for a hosted file that contains links to all
  *  the math 104 youtube vidoes my students can be tracked on
  */
@@ -119,16 +146,11 @@ async function get_intervals_watched(event, video) {
     
     if (data != null) {
 
-        if (data.trim().length > 0) {
-            let lines = data.split('\n');
-            // go through the lines and pick the ones that match the given video_id
-            for (let line of lines) {
-                if (line.trim().length > 0) {
-                    let obj = JSON.parse(line);
-                    if (video === obj.video_id) {
-                        view_data = misc.union_intervals(obj.intervals_watched, view_data);
-                    }
-                }
+        let json_data = JSON.parse(data);
+
+        for (let view of json_data) {
+            if (view.video_id === video) {
+                return view.intervals_watched;
             }
         }
    
@@ -157,24 +179,21 @@ function save_progress_to_disk (event, data) {
 
     if (data_filename !== '') {
         let current_data = read_data_from_disk(data_filename);
-        console.log(`\n\nDATA == \n\n${current_data}`);
         let video_previously_viewed = false;
         let json_views = [];
         if (current_data !== null) {
-            let saved_views = current_data.split('\n');
-            for(let view of saved_views) {
-                let json_view = JSON.parse(view);
-                if (json_view.video_id === data.video_id) {
+            json_views = JSON.parse(current_data);
+            for (let view of json_views) {
+                if (view.video_id === data.video_id) {
                     video_previously_viewed = true;
-                    json_view.intervals_watched = data.intervals_watched;
-                    json_view.score = data.score;
+                    view.intervals_watched = data.intervals_watched;
+                    view.score = data.score;
                     if (data.score > 95) {
-                        let completion_date = json_view.completion_date ? json_view.completion_date : data.timestamp;
-                        json_view.completion_date = completion_date;
+                        let completion_date = view.completion_date ? view.completion_date : data.timestamp;
+                        view.completion_date = completion_date;
                         delete data.timestamp;
                     }
                 }
-                json_views.push(json_view);
             }
         } 
 
