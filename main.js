@@ -11,7 +11,7 @@ const misc = require('./js/misc.js');
 
 const version = app.getVersion();
 let pref_file = 'video_player_prefs.json';
-let backup_filename = 'userdata.backup';
+let data_filename = path.join(app.getPath('userData'), 'userdata.vdb');
 let user_prefs = {};
 
 const createWindow = () => {
@@ -43,12 +43,10 @@ app.whenReady().then(() => {
     ipcMain.handle('get-video-data', fetch_video_data);
     ipcMain.handle('get-intervals-watched', get_intervals_watched);
     ipcMain.handle('get-version', get_version_number);
-    ipcMain.handle('get-default-settings', get_default_settings);
+    ipcMain.handle('get-user-data', get_user_data);
     ipcMain.handle('get-appdata-folder', get_appdata_folder);
     ipcMain.on('save-video-data', save_progress_to_disk);
     ipcMain.on('set-user-data', set_user_data);
-    ipcMain.on('create-new-video-database', create_new_database);
-    ipcMain.on('open-video-database', open_video_database);
     ipcMain.on('show-message-dialog', show_message_dialog);
 
     let mainWindow = createWindow();
@@ -85,75 +83,13 @@ app.on('window-all-closed', () => {
 /******************************************************************************
  * Sends the user_preferences that were saved to disk over to the front end
  */
-async function get_default_settings() {
+async function get_user_data() {
     return user_prefs;
 }
 
 async function get_appdata_folder() {
     return app.getPath('appData');
-}
-
-async function create_new_database (event) {
-    
-    const window = BrowserWindow.getFocusedWindow();
-    let default_path = '';
-
-    if (user_prefs.data_file === '' || !fs.existsSync(user_prefs.data_file)) {
-        default_path = app.getPath('documents');
-    } else {
-        default_path = user_prefs.data_file;
-    }
-    const options = {
-        title: 'Create a New File',
-        defaultPath: default_path,
-        properties: ['createDirectory'],
-        filters: [{
-            name: 'Video Database Files',
-            extensions: ['vdb']
-          }]
-    };
-    const result = await dialog.showSaveDialogSync(window, options);
-    if (result) {
-        user_prefs.data_file = result;
-        fs.writeFileSync(user_prefs.data_file, '');
-    } else {
-        process.exit(0);
-    }
-}
-    
-
-function open_video_database(event) {
-
-    const window = BrowserWindow.getFocusedWindow();
-    let default_path = '';
-    if (user_prefs.data_file === '' || !fs.existsSync(user_prefs.data_file)) {
-        default_path = app.getPath('documents');
-    } else {
-        default_path = user_prefs.data_file;
-    }
-
-    const options = {
-        title: 'Open a Video Data File',
-        defaultPath: default_path,
-        properties: ['openFile'],
-        filters: [{
-            name: 'Video Database Files',
-            extensions: ['vdb']
-          }]
-    };
-
-    const result = dialog.showOpenDialogSync(window, options);
-    if (result) {
-        try {
-            let data = read_data_from_disk(result[0]);
-        } catch (error) {
-            dialog.showErrorBox('File format error', 'Selected file is the wrong format.');
-            process.exit(-1);
-        }
-        user_prefs.data_file = result[0];
-    }
-}
-
+}   
 
 /******************************************************************************
  * This function calls my website for a hosted file that contains links to all
@@ -179,21 +115,25 @@ async function get_intervals_watched(event, video) {
     let view_data = [];
 
     // read the data file - will need to change this to student selected file
-    let data = read_data_from_disk(user_prefs.data_file)
+    let data = read_data_from_disk(data_filename);
     
-    if (data.trim().length > 0) {
-        let lines = data.split('\n');
-        // go through the lines and pick the ones that match the given video_id
-        for (let line of lines) {
-            if (line.trim().length > 0) {
-                let obj = JSON.parse(line);
-                if (video === obj.video_id) {
-                    view_data = misc.union_intervals(obj.intervals_watched, view_data);
+    if (data != null) {
+
+        if (data.trim().length > 0) {
+            let lines = data.split('\n');
+            // go through the lines and pick the ones that match the given video_id
+            for (let line of lines) {
+                if (line.trim().length > 0) {
+                    let obj = JSON.parse(line);
+                    if (video === obj.video_id) {
+                        view_data = misc.union_intervals(obj.intervals_watched, view_data);
+                    }
                 }
             }
         }
-    }
-
+   
+    } 
+    
     return view_data;
 
 }
@@ -215,39 +155,66 @@ function save_progress_to_disk (event, data) {
 
     let mainWindow = BrowserWindow.getFocusedWindow();
 
-    data.username = os.userInfo().username;
-    data.fingerprint = crypto.createHash('md5').update(`${data.timestamp}${data.student_id}`).digest('hex');
-    let payload = `${JSON.stringify(data)}\n`;
+    if (data_filename !== '') {
+        let current_data = read_data_from_disk(data_filename);
+        console.log(`\n\nDATA == \n\n${current_data}`);
+        let video_previously_viewed = false;
+        let json_views = [];
+        if (current_data !== null) {
+            let saved_views = current_data.split('\n');
+            for(let view of saved_views) {
+                let json_view = JSON.parse(view);
+                if (json_view.video_id === data.video_id) {
+                    video_previously_viewed = true;
+                    json_view.intervals_watched = data.intervals_watched;
+                    json_view.score = data.score;
+                    if (data.score > 95) {
+                        let completion_date = json_view.completion_date ? json_view.completion_date : data.timestamp;
+                        json_view.completion_date = completion_date;
+                        delete data.timestamp;
+                    }
+                }
+                json_views.push(json_view);
+            }
+        } 
 
-    // Write everything to the backup file no matter what
-    let backup_file = path.join(app.getPath('userData'), backup_filename);
-    try {
-        fs.appendFileSync(backup_file, payload);
-    } catch (err) { }
+        if (!video_previously_viewed) {
+            if (data.score > 95) {
+                let completion_date = data.completion_date ? data.completion_date : data.timestamp;
+                data.completion_date = completion_date;
+                delete data.timestamp;
+            }
+            json_views.push(data);
+        }
 
-    if (user_prefs.data_file !== '') {
         try {
-            // Combine the new data with the data already saved on disk
-            let current_data = read_data_from_disk(user_prefs.data_file);
-            let buffer = `${current_data}${payload}`;
+
+            // Write the data to disk
+            let buffer = `${JSON.stringify(json_views)}`;
 
             // Zip the data up to save space and encode it in base64
             buffer = encode_data(buffer);
-            fs.writeFileSync(user_prefs.data_file, buffer);
-            dialog.showMessageBoxSync(mainWindow, { message: `Current view information saved to file:\n\n${user_prefs.data_file}` });
+            fs.writeFileSync(data_filename, buffer);
+
         } catch (error) {
             dialog.showErrorBox("Error writing file", "An error occurred while attempting to save data.");
         }
+
     }
+
 }
 
 function read_data_from_disk(filename) {
 
     // Read data from disk which is in base64 encoding
-    let data = fs.readFileSync(filename).toString();
-    data = decode_data(data);
+    if (fs.existsSync(filename)) {
+        let data = fs.readFileSync(filename).toString();
+        data = decode_data(data);
 
-    return data;
+        return data;
+    } else {
+        return null;
+    }
 }
 
 /******************************************************************************
@@ -350,7 +317,6 @@ function load_preferences(filename) {
             width: saved_prefs.width ? saved_prefs.width : 650,
             user_name: saved_prefs.user_name ? saved_prefs.user_name : '',
             student_id: saved_prefs.student_id ? saved_prefs.student_id : '',
-            data_file: saved_prefs.data_file ? saved_prefs.data_file : '',
             ignored_versions: saved_prefs.ignored_versions ? saved_prefs.ignored_versions : [],
         }
         return prefs;
@@ -372,6 +338,10 @@ function load_preferences(filename) {
  */
 function save_preferences(filename, prefs) {
     
+    if (prefs.data_file) {
+        delete prefs.data_file;
+    }
+
     let path_name = path.join(app.getPath('userData'), filename);
     let data = JSON.stringify(prefs);
     try {
@@ -394,8 +364,8 @@ const template = [
                 label: 'Show vdb File Location',
                 accelerator: process.platform === 'darwin' ? 'Alt+Cmd+L' : 'Alt+Shift+L',
                 click: () => {
-                    if (fs.existsSync(user_prefs.data_file)) {
-                        shell.showItemInFolder(user_prefs.data_file);
+                    if (fs.existsSync(data_filename)) {
+                        shell.showItemInFolder(data_filename);
                     } else {
                         dialog.showMessageBoxSync(null, { 
                             message: 'The video database file could not be located, have you created it already? If not, press the "New Video Database" button at the start of the program',

@@ -287,16 +287,6 @@ function getPercentViewed(intervals_watched, duration) {
 
 }
 
-function setBackground(svg, width, height, color, border) {
-    svg.append('rect')
-        .attr('x', 0)
-        .attr('y', 0)
-        .attr('width', width)
-        .attr('height', height)
-        .attr('fill', color)
-        .attr('stroke', border);
-}
-
 function getTextBounds(text) {
 
     let bounds = { x: 0, y: 0, width: 0, height: 0 }
@@ -518,6 +508,6 @@ if (typeof(module) !== 'undefined') {
         sort_intervals,
         combine_adjacent_intervals,
         union_intervals,
-        inArray
+        inArray,
     };
 }
