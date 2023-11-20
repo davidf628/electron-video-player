@@ -38,11 +38,23 @@
 
 <div id="login" class="center">
 
-    <p>Enter Login Information</p>
-    <input id="username" type="input" placeholder="Name (First and Last)" />
-    <input id="studentid" type="input" placeholder="StudentID" />
-    <br/><br/>
-    <input type="button" value="Start" onclick="startProgram()" />
+    <p>Enter Login Information:</p>
+    <p>
+        <input id="username" type="input" placeholder="Name (First and Last)" />
+        <input id="studentid" type="input" placeholder="StudentID" />
+    </p>
+    <p>
+        <input id="email" type="input" placeholder="Campus Email Address" />
+    </p>
+    <br/>
+    <p>
+        <input type="button" value="Start the Video Player" onclick="startProgram()" />
+    </p>
+    <br/><br/><br/>
+    <p>
+        <input type="button" value="Send Results to My Professor" onclick="sendResults()" />
+        <input type="button" value="View All My Video Results" onclick="viewResults()" />
+    </p>
 
 </div>
 
@@ -217,12 +229,35 @@ window.api.request_save_action( (event) => {
  */
 function startProgram() {
 
+    let student = {};
+
     // send username, student id, and video file back to main program
-    let student_name = document.getElementById('username').value;
-    let student_id = document.getElementById('studentid').value;
-    window.api.setUserData(student_name, student_id);
+    student.name = document.getElementById('username').value;
+    student.id = document.getElementById('studentid').value;
+    student.email = document.getElementById('email').value;
+
+    window.api.set_user_data(student);
 
     showVideoTab(); 
+
+}
+
+/******************************************************************************
+ * Copies the vdb file to the Downloads directoy and then opens finder to the
+ *  show the location of the file and instructs the student to upload the file
+ *  to the Assignments area of OAKS
+ */
+function sendResults() {
+
+    window.api.send_video_results();
+
+}
+
+/******************************************************************************
+ * Displays in a graphical form all the grades for the videos the student has
+ *  watched
+ */
+function viewResults() {
 
 }
 
@@ -246,8 +281,10 @@ function getUserData() {
         .then((prefs) => {
             document.getElementById('username').value = prefs.user_name;
             document.getElementById('studentid').value = prefs.student_id;
+            document.getElementById('email').value = prefs.email;
             user_data.user_name = prefs.user_name;
             user_data.student_id = prefs.student_id;
+            user_data.email = prefs.email;
             user_data.ignored_versions = prefs.ignored_versions;
             user_data.width = prefs.width;
             user_data.height = prefs.height;

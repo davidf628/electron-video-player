@@ -12,7 +12,11 @@ contextBridge.exposeInMainWorld('api', {
     // Send the current view data from the frontend to the backend for saving
     save_video_data: (data) => ipcRenderer.send('save-video-data', data),
 
-    setUserData: (username, id) => ipcRenderer.send('set-user-data', username, id),
+    // Takes the user data provided at the start screen and sends it to the backend
+    set_user_data: (student) => ipcRenderer.send('set-user-data', student),
+
+    // Copies the current video results to the ~/Downloads folder to send to instructor
+    send_video_results: () => ipcRenderer.send('send-video-results'),
 
     // Asks the front-end to make a request for the backend to save the data
     request_save_action: (callback) => ipcRenderer.on('request-save-action', callback),
