@@ -1,17 +1,38 @@
 // main.js
 
+// User Preference Object:
+//   user_prefs = {
+//       height: integer = 650,
+//       width: integer = 800,
+//       user_name: string = 'David Flenner',
+//       student_id: string = '20125179',
+//       email: string = 'flennerdr@cofc.edu',
+//       ignored_versions: array = '[ "1.0.0", "1.0.1" ]
+//   }
+
+// Saved Video Data
+//   video_data = {
+//      video_id: string = "pKdi1Kz0eJU",
+//      video_title: string = "1-1 Lecture",
+//      student_name: string = "David Flenner",
+//      student_id: string = "20125179",
+//      score: integer = 10,
+//      intervals_watched: Array of Arrays = [ [0, 10.3], [86.7, 97.6] ],
+//      timestamp: datetime = "2023-11-19T22:06:10.955Z",
+//      completion_date: datetime = "2023-11-19T23:30:05.054Z"
+//   }
+
+
 // Modules to control application life and create native browser window
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
-const os = require('node:os');
-const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const misc = require('./js/misc.js');
 
 const version = app.getVersion();
 let pref_file = 'video_player_prefs.json';
-let backup_filename = 'userdata.backup';
+let data_filename = path.join(app.getPath('userData'), 'userdata.vdb');
 let user_prefs = {};
 
 const createWindow = () => {
@@ -43,12 +64,13 @@ app.whenReady().then(() => {
     ipcMain.handle('get-video-data', fetch_video_data);
     ipcMain.handle('get-intervals-watched', get_intervals_watched);
     ipcMain.handle('get-version', get_version_number);
-    ipcMain.handle('get-default-settings', get_default_settings);
+    ipcMain.handle('get-user-data', get_user_data);
     ipcMain.handle('get-appdata-folder', get_appdata_folder);
+    ipcMain.handle('get-completion-date', get_completion_date);
+    ipcMain.handle('get-view-data', get_view_data);
+    ipcMain.on('send-video-results', send_video_results);
     ipcMain.on('save-video-data', save_progress_to_disk);
     ipcMain.on('set-user-data', set_user_data);
-    ipcMain.on('create-new-video-database', create_new_database);
-    ipcMain.on('open-video-database', open_video_database);
     ipcMain.on('show-message-dialog', show_message_dialog);
 
     let mainWindow = createWindow();
@@ -85,75 +107,51 @@ app.on('window-all-closed', () => {
 /******************************************************************************
  * Sends the user_preferences that were saved to disk over to the front end
  */
-async function get_default_settings() {
+async function get_user_data() {
     return user_prefs;
 }
 
 async function get_appdata_folder() {
     return app.getPath('appData');
+}   
+
+/******************************************************************************
+ * Sends the current view result data to the front end to display to the 
+ *  student so they know how much they have watched
+ */
+async function get_view_data() {
+    let current_data = read_data_from_disk(data_filename);
+    if (current_data !== null) {
+        return JSON.parse(current_data);
+    }
+    return '';
 }
 
-async function create_new_database (event) {
+/******************************************************************************
+ * Determines the date that a video was completed and returns that to the
+ *  front end
+ */
+
+async function get_completion_date(event, video) {
+    let completion_date = '';
+
+    // read the data file - will need to change this to student selected file
+    let data = read_data_from_disk(data_filename);
     
-    const window = BrowserWindow.getFocusedWindow();
-    let default_path = '';
+    if (data != null) {
 
-    if (user_prefs.data_file === '' || !fs.existsSync(user_prefs.data_file)) {
-        default_path = app.getPath('documents');
-    } else {
-        default_path = user_prefs.data_file;
-    }
-    const options = {
-        title: 'Create a New File',
-        defaultPath: default_path,
-        properties: ['createDirectory'],
-        filters: [{
-            name: 'Video Database Files',
-            extensions: ['vdb']
-          }]
-    };
-    const result = await dialog.showSaveDialogSync(window, options);
-    if (result) {
-        user_prefs.data_file = result;
-        fs.writeFileSync(user_prefs.data_file, '');
-    } else {
-        process.exit(0);
-    }
-}
-    
+        let json_data = JSON.parse(data);
 
-function open_video_database(event) {
-
-    const window = BrowserWindow.getFocusedWindow();
-    let default_path = '';
-    if (user_prefs.data_file === '' || !fs.existsSync(user_prefs.data_file)) {
-        default_path = app.getPath('documents');
-    } else {
-        default_path = user_prefs.data_file;
-    }
-
-    const options = {
-        title: 'Open a Video Data File',
-        defaultPath: default_path,
-        properties: ['openFile'],
-        filters: [{
-            name: 'Video Database Files',
-            extensions: ['vdb']
-          }]
-    };
-
-    const result = dialog.showOpenDialogSync(window, options);
-    if (result) {
-        try {
-            let data = read_data_from_disk(result[0]);
-        } catch (error) {
-            dialog.showErrorBox('File format error', 'Selected file is the wrong format.');
-            process.exit(-1);
+        for (let view of json_data) {
+            if (view.video_id === video) {
+                return view.completion_date;
+            }
         }
-        user_prefs.data_file = result[0];
-    }
+   
+    } 
+    
+    return completion_date;
 }
-
 
 /******************************************************************************
  * This function calls my website for a hosted file that contains links to all
@@ -179,21 +177,20 @@ async function get_intervals_watched(event, video) {
     let view_data = [];
 
     // read the data file - will need to change this to student selected file
-    let data = read_data_from_disk(user_prefs.data_file)
+    let data = read_data_from_disk(data_filename);
     
-    if (data.trim().length > 0) {
-        let lines = data.split('\n');
-        // go through the lines and pick the ones that match the given video_id
-        for (let line of lines) {
-            if (line.trim().length > 0) {
-                let obj = JSON.parse(line);
-                if (video === obj.video_id) {
-                    view_data = misc.union_intervals(obj.intervals_watched, view_data);
-                }
+    if (data != null) {
+
+        let json_data = JSON.parse(data);
+
+        for (let view of json_data) {
+            if (view.video_id === video) {
+                return view.intervals_watched;
             }
         }
-    }
-
+   
+    } 
+    
     return view_data;
 
 }
@@ -202,9 +199,10 @@ async function get_intervals_watched(event, video) {
  * Saves the current user data in a object in order to save the information to
  *  disk later for simplicity
  */
-function set_user_data(event, username, id) {
-    user_prefs.user_name = username;
-    user_prefs.student_id = id;
+function set_user_data(event, student) {
+    user_prefs.user_name = student.name;
+    user_prefs.student_id = student.id;
+    user_prefs.email = student.email;
 }
 
 /******************************************************************************
@@ -213,41 +211,64 @@ function set_user_data(event, username, id) {
 
 function save_progress_to_disk (event, data) {
 
-    let mainWindow = BrowserWindow.getFocusedWindow();
+    if (data_filename !== '') {
+        let current_data = read_data_from_disk(data_filename);
+        let video_previously_viewed = false;
+        let json_views = [];
+        if (current_data !== null) {
+            json_views = JSON.parse(current_data);
+            for (let view of json_views) {
+                if (view.video_id === data.video_id) {
+                    video_previously_viewed = true;
+                    view.intervals_watched = misc.union_intervals(data.intervals_watched, view.intervals_watched);
+                    view.score = data.score;
+                    if (data.score > 95) {
+                        let completion_date = view.completion_date ? view.completion_date : data.timestamp;
+                        view.completion_date = completion_date;
+                    }
+                }
+            }
+        } 
 
-    data.username = os.userInfo().username;
-    data.fingerprint = crypto.createHash('md5').update(`${data.timestamp}${data.student_id}`).digest('hex');
-    let payload = `${JSON.stringify(data)}\n`;
+        if (!video_previously_viewed) {
+            if (data.score > 95) {
+                let completion_date = data.completion_date ? data.completion_date : data.timestamp;
+                data.completion_date = completion_date;
+            }
+            json_views.push(data);
+        }
 
-    // Write everything to the backup file no matter what
-    let backup_file = path.join(app.getPath('userData'), backup_filename);
-    try {
-        fs.appendFileSync(backup_file, payload);
-    } catch (err) { }
-
-    if (user_prefs.data_file !== '') {
         try {
-            // Combine the new data with the data already saved on disk
-            let current_data = read_data_from_disk(user_prefs.data_file);
-            let buffer = `${current_data}${payload}`;
+
+            // Write the data to disk
+            let buffer = `${JSON.stringify(json_views)}`;
 
             // Zip the data up to save space and encode it in base64
             buffer = encode_data(buffer);
-            fs.writeFileSync(user_prefs.data_file, buffer);
-            dialog.showMessageBoxSync(mainWindow, { message: `Current view information saved to file:\n\n${user_prefs.data_file}` });
+            fs.writeFileSync(data_filename, buffer);
+
+            let tmp_filename = path.join(app.getPath('userData'), 'userdata.json');
+            fs.writeFileSync(tmp_filename, JSON.stringify(json_views));
+
         } catch (error) {
             dialog.showErrorBox("Error writing file", "An error occurred while attempting to save data.");
         }
+
     }
+
 }
 
 function read_data_from_disk(filename) {
 
     // Read data from disk which is in base64 encoding
-    let data = fs.readFileSync(filename).toString();
-    data = decode_data(data);
+    if (fs.existsSync(filename)) {
+        let data = fs.readFileSync(filename).toString();
+        data = decode_data(data);
 
-    return data;
+        return data;
+    } else {
+        return null;
+    }
 }
 
 /******************************************************************************
@@ -350,7 +371,7 @@ function load_preferences(filename) {
             width: saved_prefs.width ? saved_prefs.width : 650,
             user_name: saved_prefs.user_name ? saved_prefs.user_name : '',
             student_id: saved_prefs.student_id ? saved_prefs.student_id : '',
-            data_file: saved_prefs.data_file ? saved_prefs.data_file : '',
+            email: saved_prefs.email ? saved_prefs.email : '',
             ignored_versions: saved_prefs.ignored_versions ? saved_prefs.ignored_versions : [],
         }
         return prefs;
@@ -360,7 +381,8 @@ function load_preferences(filename) {
             width: 800,
             user_name: '',
             student_id: '',
-            data_file: ''
+            email: '',
+            ignored_versions: []
         }
         return prefs;
     }
@@ -372,6 +394,10 @@ function load_preferences(filename) {
  */
 function save_preferences(filename, prefs) {
     
+    if (prefs.data_file) {
+        delete prefs.data_file;
+    }
+
     let path_name = path.join(app.getPath('userData'), filename);
     let data = JSON.stringify(prefs);
     try {
@@ -383,6 +409,59 @@ function save_preferences(filename, prefs) {
 }
 
 /******************************************************************************
+ * Copies the video database to the ~/Downloads folder and opens a finder 
+ *  window to that path to make it easy for students to locate the file they
+ *  need to send to their instructor.
+ */
+function send_video_results() {
+
+    // Make a file name that uses a persons email address (if possible)
+    let newfilename = '';
+    if (user_prefs.email !== '') {
+        let atloc = user_prefs.email.indexOf('@');
+        if (atloc == -1) {
+            newfilename = user_prefs.email;
+        } else {
+            newfilename = user_prefs.email.substring(0, atloc);
+        }
+        newfilename.replace(/[^A-Za-z]/g, '');
+        if (newfilename.length == 0) {
+            newfilename = 'userdata';
+        }
+    } else {
+        newfilename = 'userdata';
+    }
+
+    newfilename = `${newfilename}.vdb`;
+    let new_filepath = path.join(app.getPath('downloads'), newfilename)
+
+
+    if (fs.existsSync(new_filepath)) {
+        fs.unlinkSync(new_filepath);
+    }
+
+    // Copy the vdb file to the ~/Downloads folder
+    fs.copyFile(data_filename, new_filepath, (err) => {
+        if (err) {
+            dialog.showMessageBoxSync(null, { 
+                message: err.message,
+                title: 'Error'
+            });
+        } else {
+            // Open a finder window to the folder
+            shell.showItemInFolder(new_filepath);
+
+            // Indicate to them that they need to now upload this file to
+            //  the assignments area in OAKS
+            dialog.showMessageBoxSync(null, { 
+                message: `The file "${newfilename}" was copied to your Downloads folder, please upload this file into the Assignments area of OAKS for your professor to update your grade.`,
+                title: 'Upload File to OAKS'
+            });
+        }
+    });
+}
+
+/******************************************************************************
  * Below here is the application menu definition
  */
 
@@ -391,11 +470,18 @@ const template = [
         label: 'File',
         submenu: [
             {
+                label: 'Send Professor My Grades',
+                accelerator: process.platform === 'darwin' ? 'Alt+Cmd+S' : 'Alt+Shift+S',
+                click: () => {
+                    send_video_results();                   
+                }
+            },
+            {
                 label: 'Show vdb File Location',
                 accelerator: process.platform === 'darwin' ? 'Alt+Cmd+L' : 'Alt+Shift+L',
                 click: () => {
-                    if (fs.existsSync(user_prefs.data_file)) {
-                        shell.showItemInFolder(user_prefs.data_file);
+                    if (fs.existsSync(data_filename)) {
+                        shell.showItemInFolder(data_filename);
                     } else {
                         dialog.showMessageBoxSync(null, { 
                             message: 'The video database file could not be located, have you created it already? If not, press the "New Video Database" button at the start of the program',

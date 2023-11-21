@@ -7,6 +7,7 @@
     <link href="https://vjs.zencdn.net/8.5.2/video-js.css" rel="stylesheet" />
     <script src="./js/d3.js"></script>
     <script src="./js/misc.js"></script>
+    <script src="./js/jquery-3.7.1.min.js"></script>
     <title>MATH 104 Video Player</title>
 
     <style>
@@ -14,6 +15,25 @@
             padding: 100px 50px;
             border: 3px solid green;
             text-align: center;
+        }
+        .status-bar {
+            height: 70;
+            padding-top: 5px;
+        }
+        .video-title {
+            float: left;
+            padding-left: 5px;
+        }
+        .student-info {
+            float: right;
+            padding-right: 5px;
+        }
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 5px;
         }
     </style>
 
@@ -26,15 +46,23 @@
 
 <div id="login" class="center">
 
-    <p>Enter Login Information</p>
-    <input id="username" type="input" placeholder="Name (First and Last)" />
-    <input id="studentid" type="input" placeholder="StudentID" />
-    <br/><br/>
-    <p id="video-file"></p>
-    <input type="button" value="Use Current File" onclick="startProgram()" />
-    <br/><br/>
-    <input type="button" value="New Video Database" onclick="createNewDatabase()" />
-    <input type="button" value="Open Video Database" onclick="openVideoDatabase()" />
+    <p>Enter Login Information:</p>
+    <p>
+        <input id="username" type="input" placeholder="Name (First and Last)" />
+        <input id="studentid" type="input" placeholder="StudentID" />
+    </p>
+    <p>
+        <input id="email" type="input" placeholder="Campus Email Address" />
+    </p>
+    <br/>
+    <p>
+        <input type="button" value="Start the Video Player" onclick="startProgram()" />
+    </p>
+    <br/><br/><br/>
+    <p>
+        <input type="button" value="Send Results to My Professor" onclick="sendResults()" />
+        <input type="button" value="View All My Video Results" onclick="viewResults()" />
+    </p>
 
 </div>
 
@@ -43,7 +71,20 @@
 
 <div id="video">
     
-    <h2 id="video-title">1-1 Lecture</h2>
+    <div class="status-bar">
+
+        <div class="video-title">
+            <h2 id="video-title">1-1 Lecture</h2>
+        </div>
+
+        <div class="student-info">
+            <svg id="student-info-svg" width="300" height="40">
+                <g id="text">
+                </g>
+              </svg>
+        </div>
+
+    </div>
 
     <video
         id="vid1"
@@ -98,13 +139,27 @@
 
     <br/><br/>
 
-    <div id="status-bar">
-        <svg id="status-background">
+    <div class="main-progress-bar">
+        <svg id="main-progress-bar-container">
 
         </svg>
     </div>
+
 </div>
 
+<div id="grades_view">
+    <p>
+        <table id="grades_table" style="width:80%" align="center">
+            <tr align="center">
+                <th>Video</th>
+                <th>Grade</th>
+                <th>Watched</th>
+                <th>Completion Date</th>
+            </tr>
+        </table>
+    </p>
+    <input type="button" value="Start the Video Player" onclick="startProgram()" />
+</div>
 
 <!-- Setup code and underlying functionality -->
 
@@ -112,39 +167,53 @@
 
     // -------- Setup code ---------
 
+    let main_progressbar_options = {
+        width: 600,
+        height: 50,
+        fg_color: 'blue',
+        bg_color: 'lightgray',
+        border_color: 'black',
+        fontsize: 40
+    }
+
+    let user_data = {};
+    let video_data = [];
+
+    // Hide the video display panel initially 
+    document.getElementById('video').style.display = 'none';
+    document.getElementById('grades_view').style.display = 'none';
+
+    // Retrieve the current list of videos playable on YouTube
+    setVideoOptions();    
+
     // Preserve the current video loaded in the player
     currentVideo = 'pKdi1Kz0eJU';
     currentModule = 1;
     currentLesson = 1;
+    currentVideoLength = 660;
 
     // Set the window title to contain the current version number
     setVersion();
 
-    // Retrieve the current list of videos playable on YouTube
-    setVideoOptions();
-
     // Retrieve the current username, id, and data file on record
-    getDefaultSettings();
+    getUserData();
 
-    // Hide the video display panel initially 
-    document.getElementById('video').style.display = 'none';
+    // Display the current users name and the current date on the page
+    displayStudentInfo();
 
     // Set up the svg area for drawing the status bar
-    let xScale = d3.scaleLinear().range([0, 600]);
+    let xScale = d3.scaleLinear()
+        .domain([0, currentVideoLength])
+        .range([0, main_progressbar_options.width]);
 
-    let svg = d3.select('#status-background')
-        .attr('width', 600)
-        .attr('height', 50);
+    let svg = d3.select('#main-progress-bar-container')
+        .attr('width', main_progressbar_options.width)
+        .attr('height', main_progressbar_options.height);
 
-    setBackground(svg, 600, 50, "lightgray", "black");
-
-    svg
-        .append('g')
-        .attr('id', 'chart-area');
+    drawProgress([], currentVideoLength, 0, '#main-progress-bar-container', main_progressbar_options);
 
     // Setup the player
     intervalsWatched = [];
-    video_data = [];
 
     player = videojs('vid1');
     player.fluid(true);
@@ -152,68 +221,109 @@
     player.ready(() => {
         xScale.domain([0, player.duration()]);
 
-        myTimer = setInterval(
+        // Update the progress bar at 1 second intervals
+        progressTimer = setInterval(
             function () { 
+                displayStudentInfo();
                 intervalsWatched = addToPlayedIntervals(player.currentTime(), intervalsWatched);
-                drawProgress(intervalsWatched); 
+                //main_progressbar_options.width = document.getElementsByClassName('vjs-text-track-display')[0].getBoundingClientRect().width;
+                //xScale.range([0, main_progressbar_options.width]);
+                let score = player.duration() ? getPercentViewed(intervalsWatched, player.duration()) : 0;
+                drawProgress(intervalsWatched, currentVideoLength, score, '#main-progress-bar-container', main_progressbar_options); 
             }, 1000);
+
+        // Update the user data and save the data at 5 second intervals
+        dataTimer = setInterval(
+            function () { 
+                displayStudentInfo();
+                intervalsWatched = addToPlayedIntervals(player.currentTime(), intervalsWatched);
+                saveVideo(currentVideo, intervalsWatched);
+            }, 5000);
     });
 
-window.api.invokeSaveAction( (event) => {
+/******************************************************************************
+ * This is used when the backend wants to save current data, but needs to have
+ *  the front end send the current date back to the backend
+ */
+
+window.api.request_save_action( (event) => {
     saveVideo(currentVideo, intervalsWatched);
 });
+
+function getVideoData() {
+    window.api.get_video_data()
+        .then( (buffer) => {
+            video_data = buffer;
+        });
+}
 
 /******************************************************************************
  * The entry point for the main video interface
  */
 function startProgram() {
 
-    // send username, student id, and video file back to main program
-    let student_name = document.getElementById('username').value;
-    let student_id = document.getElementById('studentid').value;
-    window.api.setUserData(student_name, student_id);
+    let student = {};
 
-    // Check to see if a .vdb file has been created and is active
-    window.api.getDefaultSettings()
-        .then((prefs) => {
-            if (prefs.data_file !== '') {
-                showVideoTab();
-            } else {
-                window.api.showMessageDialog('Error', 'You first have to create or open a video database file to begin.');
+    // send username, student id, and video file back to main program
+    student.name = document.getElementById('username').value;
+    student.id = document.getElementById('studentid').value;
+    student.email = document.getElementById('email').value;
+
+    window.api.set_user_data(student);
+
+    $('#login').slideUp(1000, () => { });
+    $('#video').slideDown(1000, () => { });
+    $('#grades_view').hide(0, () => { });
+
+}
+
+/******************************************************************************
+ * Copies the vdb file to the Downloads directoy and then opens finder to the
+ *  show the location of the file and instructs the student to upload the file
+ *  to the Assignments area of OAKS
+ */
+function sendResults() {
+
+    window.api.send_video_results();
+
+}
+
+/******************************************************************************
+ * Displays in a graphical form all the grades for the videos the student has
+ *  watched
+ */
+function viewResults() {
+
+    window.api.get_view_data()
+        .then( data => {
+            if (data !== '') {
+                let i = 0;
+                let opts = {
+                    width: 200,
+                    height: 20,
+                    fg_color: 'blue',
+                    bg_color: 'lightgray',
+                    border_color: 'black',
+                    fontsize: 16
+                };
+                for (let result of data) {
+                    $('#grades_table').append(`
+                        <tr>
+                            <td>${result.video_title}</td>
+                            <td align="center">${result.score}%</td>
+                            <td align="center"><svg width=200 height=25 id='graph${i}'></svg></td>
+                            <td align="center">${result.completion_date ? result.completion_date : '' }</td>
+                        </tr>`);
+                    drawProgress(result.intervals_watched, get_video_length(result.video_id), result.score, `#graph${i}`, opts);
+                    i++;
+                }
             }
         });
 
-    
+    $('#login').slideUp(1000, () => {});
+    $('#grades_view').slideDown(1000, () => {});
 
 }
-
-
-/******************************************************************************
- * Opens a save file dialog and allows the use to create a new file for saving
- *  video results.
- */
-
-function createNewDatabase() {
-    window.api.createNewFile();
-    window.api.getDefaultSettings()
-        .then((prefs) => {
-            document.getElementById('video-file').innerHTML = prefs.data_file;
-        });
-}
-
-
-/******************************************************************************
- * Opens a dialog that allows the user to choose a video database file that
- *  exists already and load it into memory.
- */
-
- function openVideoDatabase() {
-    window.api.openExistingFile();
-    window.api.getDefaultSettings()
-        .then((prefs) => {
-            document.getElementById('video-file').innerHTML = prefs.data_file;
-        });
- }
 
 /*****************************************************************************
  * Call the backend to find out what the current version of the program is
@@ -230,12 +340,18 @@ async function setVersion() {
  * Call the backend to get the default settings of username, studentID, and 
  *  data file saved in the user preferences and load them if they exist
  */
-function getDefaultSettings() {
-    window.api.getDefaultSettings()
+function getUserData() {
+    window.api.get_user_data()
         .then((prefs) => {
             document.getElementById('username').value = prefs.user_name;
             document.getElementById('studentid').value = prefs.student_id;
-            document.getElementById('video-file').innerHTML = prefs.data_file;
+            document.getElementById('email').value = prefs.email;
+            user_data.user_name = prefs.user_name;
+            user_data.student_id = prefs.student_id;
+            user_data.email = prefs.email;
+            user_data.ignored_versions = prefs.ignored_versions;
+            user_data.width = prefs.width;
+            user_data.height = prefs.height;
         });
 }
 
@@ -245,6 +361,7 @@ function getDefaultSettings() {
  */
 
 async function setVideoOptions() {
+
     let buffer = await window.api.get_video_data();
     video_data = buffer;
 
@@ -416,7 +533,7 @@ function changeLesson() {
             intervals_watched: intervals_watched,
             timestamp: new Date()
         }
-        window.api.saveVideo(data);
+        window.api.save_video_data(data);
     }
 
     /**************************************************************************
@@ -426,24 +543,48 @@ function changeLesson() {
 
     function showVideoTab() {
         document.getElementById('login').style.display = 'none';
+        document.getElementById('grades_view').style.display = 'none';
         document.getElementById('video').style.display = 'block';
     }
+
+/******************************************************************************
+ ******************************************************************************
+ ********************* D3 Drawing Code ****************************************
+ *****************************************************************************/
 
     /**************************************************************************
      * Uses D3 to draw the progress bar based on the intervals that have
      *  already been watched.
      */
 
-    function drawProgress(intervals_watched) {
+    function drawProgress(intervals_watched, length, score, location, opts) {
 
-        let percent = `${getPercentViewed(intervals_watched, player.duration())}%`;
+        let percent = `${score}%`;
+
+        xScale.domain([0, length]);
+        xScale.range([0, opts.width]);
         
-        d3.select('#chart-area').remove();
-        let chart_area = d3.select('#status-background')
+        let chart_svg = d3.select(location);
+        chart_svg.select('#chart').remove();
+
+        let background = chart_svg
             .append('g')
-            .attr('id', 'chart-area')
+            .attr('id', 'chart')
+            .append('rect')
+                .attr('x', 0)
+                .attr('y', 0)
+                .attr('width', opts.width)
+                .attr('height', opts.height)
+                .attr('fill', opts.bg_color)
+                .attr('stroke', opts.border_color)
+                .attr('id', 'background');
+
+        let chart_area = d3.select(location).select('#chart')
+            .append('g');
         
         if (!isNaN(xScale(0))) {
+            let mid = opts.width / 2;
+            let nudge = opts.height / 2 + 2;
             chart_area.selectAll("rect")
                 .data(intervals_watched)
                 .enter()
@@ -451,23 +592,80 @@ function changeLesson() {
                 .attr("x", (d, i) => { return xScale(d[0]); })
                 .attr("y", 0)
                 .attr("width", (d) => { return xScale(d[1] - d[0]); })
-                .attr("height", 50)
+                .attr("height", opts.height)
                 .attr("fill", "blue")
                 .attr("stroke", "black");
             chart_area
                 .append('text')
                 .style('font-family', 'Helvetica')
-                .style('font-size', 40)
+                .style('font-size', opts.fontsize)
                 .style('font-weight', 'bold')
                 .attr('fill', 'white')
-                .attr('transform', `translate(300,27)`)
+                .attr('transform', `translate(${mid},${nudge})`)
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'middle')
                 .text(percent);
         } else {
-            xScale.domain([0, player.duration()]);
+            // Attempt to set the xScale function
+            if (length) {
+                xScale.domain([0, length]);
+            }
         }
     }
+
+    function displayStudentInfo() {
+        
+        window.api.get_completion_date(currentVideo)
+            .then((completion_date) => {
+                let student_info = d3.select('#student-info-svg');
+                student_info.select('#text').remove();
+                student_info
+                    .append('g')
+                    .attr('id', 'text');
+                let textbox = d3.select('#student-info-svg').select('#text');
+                textbox
+                    .append('text')
+                    .attr('id', 'student-name')
+                    .attr('fill', 'black')
+                    .attr('x', 300)
+                    .attr('text-anchor', 'end')
+                    .attr('y', 12)
+                    .style('font-family', 'Helvetica')
+                    .style('font-size', 12)
+                    .style('font-weight', 'normal')
+                    .text(`Name: ${user_data.user_name ? user_data.user_name : '' }`);
+                textbox
+                    .append('text')
+                    .attr('id', 'current-date')
+                    .attr('fill', 'black')
+                    .attr('x', 300)
+                    .attr('text-anchor', 'end')
+                    .attr('y', 24)
+                    .style('font-family', 'Helvetica')
+                    .style('font-size', 12)
+                    .style('font-weight', 'normal')
+                    .text(`Date: ${new Date().toDateString()}`);
+                textbox
+                    .append('text')
+                    .attr('id', 'current-date')
+                    .attr('fill', 'black')
+                    .attr('x', 300)
+                    .attr('text-anchor', 'end')
+                    .attr('y', 36)
+                    .style('font-family', 'Helvetica')
+                    .style('font-size', 12)
+                    .style('font-weight', 'normal')
+                    .text(`Completion Date: ${completion_date ? completion_date : ''}`);
+            });
+ 
+    }
+
+/******************************************************************************
+ ******************************************************************************
+ ********************* D3 Drawing Code ****************************************
+ *****************************************************************************/
+
+
 
     /**************************************************************************
      * Changes the current video loaded into the player
@@ -479,25 +677,25 @@ function changeLesson() {
         intervalsWatched = [];
 
         let video = document.getElementById('video-select').value;
-        let length = get_video_length(video);
+        currentVideoLength = get_video_length(video);
         let title = get_video_title(video);
         currentVideo = video;
 
-        if (length === null) {
-            length = player.duration();
-        }
+        if (currentVideoLength === null) {
+            currentVideoLength = player.duration();
+        } 
 
         // Change video title display:
         document.getElementById('video-title').innerHTML = title;
 
-        window.api.getIntervalsWatched(video)
+        window.api.get_intervals_watched(video)
             .then(view => { intervalsWatched = view; });
         
         player.src({ type: 'video/youtube', src: `https://youtu.be/${video}` });
 
         xScale = d3.scaleLinear()
-            .domain([0, length])
-            .range([0, 600]);
+            .domain([0, currentVideoLength])
+            .range([0, main_progressbar_options.width]);
 
         if (play) {
             player.play();
@@ -506,9 +704,9 @@ function changeLesson() {
     }
 
     function playCurrentVideo() {
-       intervalsWatched = [];
-       let video = document.getElementById('video-select').value;
-       window.api.getIntervalsWatched(video)
+        intervalsWatched = [];
+        let video = document.getElementById('video-select').value;
+        window.api.get_intervals_watched(video)
             .then(view => { intervalsWatched = view; }); 
         player.play();
     }
