@@ -63,7 +63,6 @@ app.whenReady().then(() => {
 
     ipcMain.handle('get-video-data', fetch_video_data);
     ipcMain.handle('get-intervals-watched', get_intervals_watched);
-    ipcMain.handle('get-version', get_version_number);
     ipcMain.handle('get-user-data', get_user_data);
     ipcMain.handle('get-appdata-folder', get_appdata_folder);
     ipcMain.handle('get-completion-date', get_completion_date);
@@ -119,17 +118,22 @@ async function send_init_data() {
     buffer.video_data = await fetch_video_data();
 
     // Get current view data
+    buffer.view_data = await get_view_data();
 
     // Get application version
+    buffer.version = await get_version_number();
 
-    // Get video data for first video:
-       // video id
-       // video module
-       // video lesson
-       // video length
-       // video completion date
-       // video intervals_watched
-       // video title
+    // Get default video (just pick the first in the list)
+    let vid = buffer.video_data[0].youtube_id;
+    buffer.default_video = {
+        id: vid,
+        module: buffer.video_data[0].module,
+        lesson: buffer.video_data[0].lesson,
+        length: misc.parseSecondsFromTime(buffer.video_data[0].length),
+        name: buffer.video_data[0].name,
+        completion_date: await get_completion_date(null, vid),
+        intervals_watched: await get_intervals_watched(null, vid),
+    };
 
     return buffer;
 }
@@ -204,9 +208,7 @@ async function fetch_video_data() {
  */
 async function get_intervals_watched(event, video) {
 
-    let view_data = [];
-
-    // read the data file - will need to change this to student selected file
+    // read the data file 
     let data = read_data_from_disk(data_filename);
     
     if (data != null) {
@@ -221,7 +223,8 @@ async function get_intervals_watched(event, video) {
    
     } 
     
-    return view_data;
+    // if view was not found, return an empty array for the intervals watched
+    return [];
 
 }
 
@@ -251,8 +254,8 @@ function save_progress_to_disk (event, data) {
                 if (view.video_id === data.video_id) {
                     video_previously_viewed = true;
                     view.intervals_watched = misc.union_intervals(data.intervals_watched, view.intervals_watched);
-                    view.score = data.score;
-                    if (data.score > 95) {
+                    view.score = Math.max(view.score, data.score);
+                    if (view.score > 95) {
                         let completion_date = view.completion_date ? view.completion_date : data.timestamp;
                         view.completion_date = completion_date;
                     }

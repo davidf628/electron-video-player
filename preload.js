@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
-    getVersion: () => ipcRenderer.invoke('get-version'),
+
     get_video_data: () => ipcRenderer.invoke('get-video-data'),
     request_init_data: (buffer) => ipcRenderer.invoke('send-init-data', buffer),
 

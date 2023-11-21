@@ -306,6 +306,17 @@ function getTextBounds(text) {
     return bounds;
 }
 
+/******************************************************************************
+ * Converts a min:sec timestamp from a string format to a number of seconds
+ */
+
+function parseSecondsFromTime(length) {
+    let [min, sec] = length.split(':');
+    let len = parseInt(min) * 60 + parseInt(sec);
+    return len;
+}
+
+
 function addSVGText(text, elementId, orientation) {
 
     if (text.visible) {
@@ -509,5 +520,6 @@ if (typeof(module) !== 'undefined') {
         combine_adjacent_intervals,
         union_intervals,
         inArray,
+        parseSecondsFromTime,
     };
 }
