@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('api', {
     getVersion: () => ipcRenderer.invoke('get-version'),
     get_video_data: () => ipcRenderer.invoke('get-video-data'),
+    request_init_data: (buffer) => ipcRenderer.invoke('send-init-data', buffer),
+
     get_user_data: () => ipcRenderer.invoke('get-user-data'),
 
     // Gets a list of all the video results data to display to the student

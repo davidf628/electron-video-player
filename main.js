@@ -45,7 +45,7 @@ const createWindow = () => {
         width: user_prefs.width,
         height: user_prefs.height,
         webPreferences: {
-        preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js')
         }
     });
  
@@ -74,6 +74,10 @@ app.whenReady().then(() => {
     ipcMain.on('show-message-dialog', show_message_dialog);
 
     let mainWindow = createWindow();
+
+
+    ipcMain.handle('send-init-data', send_init_data);
+
     mainWindow.on('close', () => {
 
         // Get the current view and save it in case it hasn't been saved 
@@ -103,6 +107,32 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+async function send_init_data() {
+
+    let buffer = {};
+
+    // Get user preferences
+    buffer.user_prefs = user_prefs;
+
+    // Get video data
+    buffer.video_data = await fetch_video_data();
+
+    // Get current view data
+
+    // Get application version
+
+    // Get video data for first video:
+       // video id
+       // video module
+       // video lesson
+       // video length
+       // video completion date
+       // video intervals_watched
+       // video title
+
+    return buffer;
+}
 
 /******************************************************************************
  * Sends the user_preferences that were saved to disk over to the front end

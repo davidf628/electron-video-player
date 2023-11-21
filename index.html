@@ -179,6 +179,17 @@
     let user_data = {};
     let video_data = [];
 
+    window.api.request_init_data()
+        .then( (buffer) => {
+            let user_prefs = buffer.user_prefs;
+            let video_data = buffer.video_data;
+            console.log(user_prefs);
+            console.log(video_data)
+            console.log('got here!');
+        });
+
+    console.log(video_data);
+
     // Hide the video display panel initially 
     document.getElementById('video').style.display = 'none';
     document.getElementById('grades_view').style.display = 'none';
