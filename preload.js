@@ -3,8 +3,13 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('api', {
     getVersion: () => ipcRenderer.invoke('get-version'),
     get_video_data: () => ipcRenderer.invoke('get-video-data'),
-    getIntervalsWatched: (video) => ipcRenderer.invoke('get-intervals-watched', video),
     get_user_data: () => ipcRenderer.invoke('get-user-data'),
+
+    // Gets a list of all the video results data to display to the student
+    get_view_data: () => ipcRenderer.invoke('get-view-data'),
+
+    // Gets the intervals that have been watched for a particular video
+    get_intervals_watched: (video) => ipcRenderer.invoke('get-intervals-watched', video),
 
     // Gets the date for when a video was fully completed
     get_completion_date: (video) => ipcRenderer.invoke('get-completion-date', video),

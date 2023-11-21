@@ -1,11 +1,32 @@
 // main.js
 
+// User Preference Object:
+//   user_prefs = {
+//       height: integer = 650,
+//       width: integer = 800,
+//       user_name: string = 'David Flenner',
+//       student_id: string = '20125179',
+//       email: string = 'flennerdr@cofc.edu',
+//       ignored_versions: array = '[ "1.0.0", "1.0.1" ]
+//   }
+
+// Saved Video Data
+//   video_data = {
+//      video_id: string = "pKdi1Kz0eJU",
+//      video_title: string = "1-1 Lecture",
+//      student_name: string = "David Flenner",
+//      student_id: string = "20125179",
+//      score: integer = 10,
+//      intervals_watched: Array of Arrays = [ [0, 10.3], [86.7, 97.6] ],
+//      timestamp: datetime = "2023-11-19T22:06:10.955Z",
+//      completion_date: datetime = "2023-11-19T23:30:05.054Z"
+//   }
+
+
 // Modules to control application life and create native browser window
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
-const os = require('node:os');
-const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const misc = require('./js/misc.js');
 
@@ -46,6 +67,7 @@ app.whenReady().then(() => {
     ipcMain.handle('get-user-data', get_user_data);
     ipcMain.handle('get-appdata-folder', get_appdata_folder);
     ipcMain.handle('get-completion-date', get_completion_date);
+    ipcMain.handle('get-view-data', get_view_data);
     ipcMain.on('send-video-results', send_video_results);
     ipcMain.on('save-video-data', save_progress_to_disk);
     ipcMain.on('set-user-data', set_user_data);
@@ -92,6 +114,18 @@ async function get_user_data() {
 async function get_appdata_folder() {
     return app.getPath('appData');
 }   
+
+/******************************************************************************
+ * Sends the current view result data to the front end to display to the 
+ *  student so they know how much they have watched
+ */
+async function get_view_data() {
+    let current_data = read_data_from_disk(data_filename);
+    if (current_data !== null) {
+        return JSON.parse(current_data);
+    }
+    return '';
+}
 
 /******************************************************************************
  * Determines the date that a video was completed and returns that to the
@@ -348,7 +382,7 @@ function load_preferences(filename) {
             user_name: '',
             student_id: '',
             email: '',
-            data_file: ''
+            ignored_versions: []
         }
         return prefs;
     }
